@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>RAP Salgados - Ficha Técnica</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --verde: #123C2C;
+    --verde-2: #1E5A42;
+    --dourado: #C9A227;
+    --dourado-lt: #E7C866;
+    --papel: #FBF6EC;
+    --papel-2: #F3EBD8;
+    --tinta: #2B2118;
+    --tinta-suave: #6B5F4F;
+    --linha: #D8CBA8;
+    --erro: #A23B2E;
+    --ok: #1E5A42;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background: var(--verde);
+    background-image:
+      radial-gradient(circle at 10% 0%, rgba(201,162,39,0.10), transparent 45%),
+      radial-gradient(circle at 90% 100%, rgba(201,162,39,0.08), transparent 45%);
+    font-family:'Inter', Arial, sans-serif;
+    color: var(--tinta);
+    min-height:100vh;
+  }
+  .app{max-width:560px;margin:0 auto;padding:18px 14px 60px;}
+
+  .brand{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:14px 4px 18px;
+  }
+  .brand-name{
+    font-family:'Montserrat',sans-serif;font-weight:800;letter-spacing:.4px;
+    color:var(--papel);font-size:15px;text-transform:uppercase;
+  }
+  .brand-name span{color:var(--dourado-lt);}
+  .brand-sub{color:rgba(251,246,236,0.65);font-size:11px;margin-top:2px;}
+
+  .ticket{
+    background: var(--papel);
+    border-radius:14px;
+    box-shadow: 0 18px 40px rgba(0,0,0,0.28);
+    position:relative;
+    overflow:hidden;
+  }
+  .ticket::before, .ticket::after{
+    content:"";position:absolute;width:22px;height:22px;background:var(--verde);
+    border-radius:50%;top:50%;transform:translateY(-50%);
+  }
+  .notch-l{left:-11px;} .notch-r{right:-11px;}
+
+  .ticket-head{
+    background: var(--verde);
+    color: var(--papel);
+    padding:20px 22px 26px;
+    position:relative;
+  }
+  .ticket-head h1{
+    font-family:'Montserrat',sans-serif;font-size:19px;font-weight:700;margin:0 0 4px;
+  }
+  .ticket-head p{margin:0;font-size:12.5px;color:rgba(251,246,236,0.7);}
+  .perf{
+    position:absolute;left:0;right:0;bottom:-1px;height:14px;
+    background-image: radial-gradient(circle, var(--papel) 6px, transparent 6.5px);
+    background-size: 20px 20px;
+    background-position: 8px -7px;
+  }
+
+  .body-pad{padding:22px;}
+
+  /* LIST VIEW */
+  .list-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+  .list-header h2{font-family:'Montserrat',sans-serif;font-size:15px;margin:0;color:var(--verde);}
+  .btn-novo{
+    background:var(--dourado);color:var(--verde);border:none;border-radius:8px;
+    padding:9px 14px;font-weight:700;font-size:13px;cursor:pointer;font-family:'Montserrat',sans-serif;
+  }
+  .empty{
+    text-align:center;padding:40px 10px;color:var(--tinta-suave);font-size:13.5px;
+    border:1.5px dashed var(--linha);border-radius:10px;
+  }
+  .card{
+    border:1px solid var(--linha);border-radius:10px;padding:13px 14px;margin-bottom:10px;
+    display:flex;justify-content:space-between;align-items:center;cursor:pointer;background:#fff;
+    transition:.15s;
+  }
+  .card:active{transform:scale(0.98);}
+  .card-name{font-weight:700;font-size:14px;color:var(--verde);font-family:'Montserrat',sans-serif;}
+  .card-sub{font-size:11.5px;color:var(--tinta-suave);margin-top:2px;}
+  .card-price{font-family:'JetBrains Mono',monospace;font-weight:600;font-size:14px;color:var(--dourado);background:var(--verde);padding:4px 8px;border-radius:6px;}
+
+  /* FORM */
+  .voltar{background:none;border:none;color:var(--verde-2);font-weight:600;font-size:13px;cursor:pointer;padding:0 0 14px;display:flex;align-items:center;gap:5px;}
+  label{display:block;font-size:12px;font-weight:600;color:var(--tinta-suave);margin:14px 0 5px;text-transform:uppercase;letter-spacing:.3px;}
+  input[type=text], input[type=number], select{
+    width:100%;padding:10px 11px;border:1.5px solid var(--linha);border-radius:8px;
+    font-size:14.5px;font-family:'Inter',sans-serif;background:#fff;color:var(--tinta);
+  }
+  input:focus, select:focus{outline:none;border-color:var(--verde-2);}
+
+  .sec-title{
+    font-family:'Montserrat',sans-serif;font-weight:700;font-size:13px;color:var(--verde);
+    margin:22px 0 8px;padding-top:14px;border-top:1px dashed var(--linha);
+    display:flex;justify-content:space-between;align-items:center;
+  }
+  .ing-row{
+    border:1px solid var(--linha);border-radius:9px;padding:10px 10px 11px;margin-bottom:9px;background:#fffdf8;
+  }
+  .ing-row-top{display:flex;gap:6px;margin-bottom:7px;}
+  .ing-row-top input{flex:1;}
+  .ing-row-bottom{display:grid;grid-template-columns: 1fr 70px 1fr 30px;gap:6px;align-items:center;}
+  .ing-row input, .ing-row select{padding:10px 9px;font-size:14.5px;width:100%;}
+  .ing-label{font-size:9.5px;text-transform:uppercase;letter-spacing:.3px;color:var(--tinta-suave);display:block;margin-bottom:3px;}
+  .ing-subtotal{
+    text-align:right;font-size:12px;color:var(--verde-2);margin-top:6px;padding-top:6px;
+    border-top:1px dashed var(--linha);font-family:'JetBrains Mono',monospace;
+  }
+  .ing-subtotal b{color:var(--verde);}
+  .rm-btn{
+    background:none;border:none;color:var(--erro);font-size:22px;cursor:pointer;line-height:1;padding:0;
+    align-self:center;justify-self:center;
+  }
+  .add-ing{
+    width:100%;border:1.5px dashed var(--verde-2);background:none;color:var(--verde-2);
+    border-radius:8px;padding:9px;font-weight:600;font-size:13px;cursor:pointer;margin-top:4px;
+  }
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .row4{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+
+  .resumo{
+    background:var(--verde);color:var(--papel);border-radius:12px;padding:16px 18px;margin-top:22px;
+  }
+  .resumo h3{font-family:'Montserrat',sans-serif;font-size:13px;margin:0 0 10px;color:var(--dourado-lt);text-transform:uppercase;letter-spacing:.4px;}
+  .resumo-line{display:flex;justify-content:space-between;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(251,246,236,0.12);font-family:'JetBrains Mono',monospace;}
+  .resumo-line:last-child{border-bottom:none;}
+  .resumo-line b{color:var(--dourado-lt);}
+  .resumo-line.destaque{font-size:16px;padding-top:10px;margin-top:4px;border-top:1px solid rgba(201,162,39,0.4);}
+
+  .actions{display:flex;gap:10px;margin-top:18px;}
+  .btn-salvar{
+    flex:1;background:var(--verde);color:var(--papel);border:none;border-radius:9px;padding:13px;
+    font-weight:700;font-size:14px;cursor:pointer;font-family:'Montserrat',sans-serif;
+  }
+  .btn-zap{
+    flex:1;background:#25D366;color:#08341f;border:none;border-radius:9px;padding:13px;
+    font-weight:700;font-size:14px;cursor:pointer;font-family:'Montserrat',sans-serif;
+    display:flex;align-items:center;justify-content:center;gap:7px;
+  }
+  .btn-excluir{
+    width:100%;background:none;border:none;color:var(--erro);font-size:12.5px;font-weight:600;
+    margin-top:14px;cursor:pointer;padding:8px;
+  }
+  .btn-pdf{
+    width:100%;background:none;border:1.5px solid var(--verde);color:var(--verde);border-radius:9px;
+    padding:11px;font-weight:700;font-size:13px;cursor:pointer;margin-top:10px;font-family:'Montserrat',sans-serif;
+  }
+  .toast{
+    position:fixed;left:50%;bottom:26px;transform:translateX(-50%);
+    background:var(--verde);color:var(--papel);padding:11px 18px;border-radius:30px;
+    font-size:13px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,.35);opacity:0;
+    transition:opacity .25s, transform .25s; pointer-events:none;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(-4px);}
+  .loading{text-align:center;color:rgba(251,246,236,.7);font-size:13px;padding:30px;}
+
+  /* ===== ÁREA DE IMPRESSÃO / PDF ===== */
+  #print-area{display:none;}
+  @media print{
+    body *{visibility:hidden;}
+    #print-area, #print-area *{visibility:visible;}
+    #print-area{
+      display:block !important;position:absolute;left:0;top:0;width:100%;
+      padding:0;margin:0;
+    }
+    @page{margin:16mm;}
+  }
+  .pdf-doc{font-family:'Inter',Arial,sans-serif;color:#2B2118;}
+  .pdf-head{
+    display:flex;justify-content:space-between;align-items:flex-end;
+    border-bottom:3px solid #123C2C;padding-bottom:12px;margin-bottom:20px;
+  }
+  .pdf-head h1{font-family:'Montserrat',sans-serif;color:#123C2C;font-size:20px;margin:0;}
+  .pdf-head .marca{font-family:'Montserrat',sans-serif;font-weight:800;color:#123C2C;font-size:14px;text-transform:uppercase;}
+  .pdf-head .marca span{color:#C9A227;}
+  .pdf-head .data{font-size:11px;color:#6B5F4F;text-align:right;}
+  .pdf-sub{font-size:12.5px;color:#6B5F4F;margin-bottom:18px;}
+  .pdf-doc h2{font-family:'Montserrat',sans-serif;font-size:13px;color:#123C2C;text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid #D8CBA8;padding-bottom:5px;margin:20px 0 10px;}
+  table.pdf-tbl{width:100%;border-collapse:collapse;font-size:12.5px;}
+  table.pdf-tbl th{text-align:left;background:#F3EBD8;color:#123C2C;padding:7px 8px;font-family:'Montserrat',sans-serif;font-size:11px;text-transform:uppercase;}
+  table.pdf-tbl td{padding:7px 8px;border-bottom:1px solid #EEE6D3;}
+  table.pdf-tbl td.num, table.pdf-tbl th.num{text-align:right;font-family:'JetBrains Mono',monospace;}
+  .pdf-custos{width:100%;font-size:12.5px;border-collapse:collapse;}
+  .pdf-custos td{padding:6px 8px;border-bottom:1px solid #EEE6D3;}
+  .pdf-custos td.v{text-align:right;font-family:'JetBrains Mono',monospace;}
+  .pdf-resumo{background:#123C2C;color:#FBF6EC;border-radius:8px;padding:14px 18px;margin-top:18px;}
+  .pdf-resumo-line{display:flex;justify-content:space-between;font-size:13px;padding:4px 0;font-family:'JetBrains Mono',monospace;}
+  .pdf-resumo-line b{color:#E7C866;}
+  .pdf-resumo-line.destaque{font-size:16px;border-top:1px solid rgba(201,162,39,.4);margin-top:6px;padding-top:8px;}
+  .pdf-foot{margin-top:26px;font-size:10.5px;color:#6B5F4F;text-align:center;}
+
+  .cards-grid{display:block;}
+
+  .credito{
+    text-align:center;font-size:11px;color:rgba(251,246,236,0.55);
+    margin-top:16px;letter-spacing:.2px;
+  }
+
+  /* ===== TABLET / DESKTOP ===== */
+  @media (min-width: 700px){
+    .app{max-width:900px;padding:26px 20px 70px;}
+    .brand-name{font-size:16px;}
+    .ticket-head{padding:26px 34px 30px;}
+    .ticket-head h1{font-size:22px;}
+    .body-pad{padding:30px 34px 34px;}
+    .list-header h2{font-size:16px;}
+    .cards-grid{display:grid;grid-template-columns:repeat(2, 1fr);gap:12px;}
+    .card{margin-bottom:0;}
+    .empty{padding:60px 20px;}
+
+    .form-grid{display:grid;grid-template-columns: 1.4fr 1fr;gap:32px;align-items:start;}
+    .form-left{min-width:0;}
+    .form-right{position:sticky;top:20px;}
+    .resumo{margin-top:0;}
+    .actions{flex-direction:column;}
+    .ing-row-bottom{grid-template-columns: 1fr 90px 1fr 34px;}
+    .row2{grid-template-columns:1fr 1fr;}
+  }
+
+  @media (min-width: 1100px){
+    .app{max-width:1080px;}
+    .ing-row-top input{font-size:15px;}
+  }
+</style>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+</head>
+<body>
+<div class="app">
+  <div class="brand">
+    <div>
+      <div class="brand-name">Grupo <span>Ricco</span></div>
+      <div class="brand-sub">Ficha Técnica Digital de Custos</div>
+    </div>
+  </div>
+
+  <div class="ticket">
+    <div class="ticket-head">
+      <h1 id="headTitle">Salgados cadastrados</h1>
+      <p id="headSub">Toque em um item para editar, ou cadastre um novo</p>
+      <div class="perf"></div>
+    </div>
+    <div class="body-pad" id="content">
+      <div class="loading">Carregando...</div>
+    </div>
+  </div>
+  <div class="credito">Desenvolvido por Ricco Assessoria Contábil &amp; Financeira</div>
+</div>
+<div class="toast" id="toast"></div>
+<div id="print-area"></div>
+
+<script>
+const WHATSAPP_NUMERO = "5521992767661";
+
+const UNIDADES = ["g","kg","ml","l","un"];
+
+function uid(){ return 's_' + Date.now() + '_' + Math.random().toString(36).slice(2,7); }
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+function fmtR(v){
+  if (isNaN(v)) v = 0;
+  return v.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+function parseNum(v){
+  if (v === undefined || v === null) return 0;
+  let s = String(v).trim();
+  if (s === '') return 0;
+  if (s.indexOf(',') !== -1){
+    s = s.replace(/\./g,'').replace(',', '.');
+  }
+  const n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+}
+
+// ============================================================
+// CONFIGURAÇÃO DO FIREBASE — troque pelos dados do SEU projeto
+// (veja o passo a passo que a Ricco Assessoria te enviou)
+// ============================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyBFnYNIwad8JfJJ1jRCgR7eTGD1mbcbRR4",
+  authDomain: "rap-salgados-fichatecnica.firebaseapp.com",
+  projectId: "rap-salgados-fichatecnica",
+  storageBucket: "rap-salgados-fichatecnica.firebasestorage.app",
+  messagingSenderId: "469471128792",
+  appId: "1:469471128792:web:cd9599506296aee7153bad"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const docRef = db.collection('rap_salgados').doc('dados');
+
+let salgados = [];
+let editingId = null;
+let syncPronto = false;
+
+function iniciarSincronizacao(){
+  docRef.onSnapshot((snap)=>{
+    const data = snap.exists ? snap.data() : null;
+    salgados = (data && data.itens) ? data.itens : [];
+    syncPronto = true;
+    if (editingId === null){
+      renderLista();
+    }
+  }, (err)=>{
+    console.error(err);
+    showToast('Sem conexão com o servidor. Verifique sua internet.');
+  });
+}
+
+async function saveSalgados(){
+  try{
+    await docRef.set({ itens: salgados }, { merge: true });
+  }catch(e){
+    showToast('Erro ao salvar. Verifique sua internet.');
+  }
+}
+
+function calcular(s){
+  const custoIngredientes = s.ingredientes.reduce((acc,i)=> acc + parseNum(i.qtd) * parseNum(i.custo), 0);
+  const custosAdc = parseNum(s.embalagem) + parseNum(s.maoObra) + parseNum(s.energia) + parseNum(s.outros);
+  const custoTotalLote = custoIngredientes + custosAdc;
+  const rendimento = parseNum(s.rendimento) || 1;
+  const custoUnidade = custoTotalLote / rendimento;
+  const cmvAlvo = parseNum(s.cmvAlvo) || 30;
+  const precoSugerido = cmvAlvo > 0 ? custoUnidade / (cmvAlvo/100) : 0;
+  const lucroUnidade = precoSugerido - custoUnidade;
+  return {custoIngredientes, custosAdc, custoTotalLote, rendimento, custoUnidade, cmvAlvo, precoSugerido, lucroUnidade};
+}
+
+function renderLista(){
+  document.getElementById('headTitle').textContent = 'Salgados cadastrados';
+  document.getElementById('headSub').textContent = 'Toque em um item para editar, ou cadastre um novo';
+  const el = document.getElementById('content');
+  let html = '<div class="list-header"><h2>' + salgados.length + ' item(ns)</h2><button class="btn-novo" onclick="novoSalgado()">+ Novo salgado</button></div>';
+  if (salgados.length === 0){
+    html += '<div class="empty">Nenhum salgado cadastrado ainda.<br>Toque em "+ Novo salgado" para começar.</div>';
+  } else {
+    html += '<div class="cards-grid">';
+    salgados.slice().reverse().forEach(s=>{
+      const c = calcular(s);
+      html += '<div class="card" onclick="abrirSalgado(\'' + s.id + '\')">' +
+        '<div><div class="card-name">' + escapeHtml(s.nome || 'Sem nome') + '</div>' +
+        '<div class="card-sub">' + (s.categoria||'Salgado') + ' · rende ' + (s.rendimento||0) + ' un.</div></div>' +
+        '<div class="card-price">R$ ' + fmtR(c.precoSugerido) + '</div></div>';
+    });
+    html += '</div>';
+  }
+  el.innerHTML = html;
+}
+
+function escapeHtml(str){
+  const d = document.createElement('div');
+  d.textContent = str || '';
+  return d.innerHTML;
+}
+
+function novoSalgado(){
+  editingId = null;
+  const novo = {
+    id: uid(), nome:'', categoria:'Frito',
+    ingredientes:[{nome:'',qtd:'',unidade:'g',custo:''}],
+    rendimento:'', embalagem:'', maoObra:'', energia:'', outros:'', cmvAlvo:'30'
+  };
+  renderForm(novo, true);
+}
+
+function abrirSalgado(id){
+  const s = salgados.find(x=>x.id===id);
+  if (!s) return;
+  editingId = id;
+  renderForm(JSON.parse(JSON.stringify(s)), false);
+}
+
+let formState = null;
+
+function renderForm(s, isNew){
+  formState = s;
+  document.getElementById('headTitle').textContent = isNew ? 'Novo salgado' : 'Editar salgado';
+  document.getElementById('headSub').textContent = 'Preencha os dados para calcular o custo';
+  draw();
+}
+
+function capturarFoco(){
+  const el = document.activeElement;
+  if (!el || !el.matches('input,select,textarea')) return null;
+  const key = el.getAttribute('data-key');
+  if (!key) return null;
+  return { key, selStart: el.selectionStart, selEnd: el.selectionEnd };
+}
+
+function restaurarFoco(info){
+  if (!info) return;
+  const el = document.querySelector('[data-key="' + info.key + '"]');
+  if (!el) return;
+  el.focus();
+  if (typeof info.selStart === 'number' && el.setSelectionRange){
+    try{ el.setSelectionRange(info.selStart, info.selEnd); }catch(e){}
+  }
+}
+
+function draw(){
+  const foco = capturarFoco();
+  const s = formState;
+  const c = calcular(s);
+  let ingHtml = '';
+  s.ingredientes.forEach((ing, idx)=>{
+    const subtotal = parseNum(ing.qtd) * parseNum(ing.custo);
+    ingHtml += '<div class="ing-row">' +
+      '<div class="ing-row-top">' +
+        '<input type="text" inputmode="text" data-key="ing-nome-' + idx + '" placeholder="Nome do ingrediente" value="' + escapeHtml(ing.nome) + '" oninput="updateIng(' + idx + ",'nome',this.value)\">" +
+      '</div>' +
+      '<div class="ing-row-bottom">' +
+        '<div><span class="ing-label">Quantidade usada</span><input type="text" inputmode="decimal" data-key="ing-qtd-' + idx + '" placeholder="Ex: 0,500" value="' + ing.qtd + '" oninput="updateIng(' + idx + ",'qtd',this.value)\"></div>" +
+        '<div><span class="ing-label">Unidade</span><select data-key="ing-unidade-' + idx + '" oninput="updateIng(' + idx + ",'unidade',this.value)\">" +
+          UNIDADES.map(u=>'<option value="'+u+'" '+(ing.unidade===u?'selected':'')+'>'+u+'</option>').join('') +
+        '</select></div>' +
+        '<div><span class="ing-label">Custo pago (R$/un)</span><input type="text" inputmode="decimal" data-key="ing-custo-' + idx + '" placeholder="Ex: 16,00" value="' + ing.custo + '" oninput="updateIng(' + idx + ",'custo',this.value)\"></div>" +
+        '<button class="rm-btn" onclick="removeIng(' + idx + ')" title="Remover">&times;</button>' +
+      '</div>' +
+      '<div class="ing-subtotal">Custo desta quantidade: <b>R$ ' + fmtR(subtotal) + '</b></div>' +
+      '</div>';
+  });
+
+  const html = `
+    <button class="voltar" onclick="voltarLista()">&larr; Voltar à lista</button>
+
+    <div class="form-grid">
+      <div class="form-left">
+        <label>Nome do salgado</label>
+        <input type="text" id="f-nome" data-key="nome" placeholder="Ex: Coxinha de frango" value="${escapeHtml(s.nome)}" oninput="formState.nome=this.value">
+
+        <label>Categoria</label>
+        <select id="f-categoria" data-key="categoria" oninput="formState.categoria=this.value">
+          ${['Frito','Assado','Congelados','Doce','Bebida','Outro'].map(c=>'<option '+(s.categoria===c?'selected':'')+'>'+c+'</option>').join('')}
+        </select>
+
+        <div class="sec-title">Ingredientes</div>
+        ${ingHtml}
+        <button class="add-ing" onclick="addIng()">+ Adicionar ingrediente</button>
+
+        <div class="sec-title">Rendimento e custos do lote</div>
+        <label>Rendimento (quantas unidades a receita produz)</label>
+        <input type="text" inputmode="decimal" data-key="rendimento" placeholder="Ex: 50" value="${s.rendimento}" oninput="formState.rendimento=this.value; draw()">
+
+        <div class="row2">
+          <div><label>Embalagem (R$ / lote)</label><input type="text" inputmode="decimal" data-key="embalagem" placeholder="0,00" value="${s.embalagem}" oninput="formState.embalagem=this.value; draw()"></div>
+          <div><label>Mão de obra (R$ / lote)</label><input type="text" inputmode="decimal" data-key="maoObra" placeholder="0,00" value="${s.maoObra}" oninput="formState.maoObra=this.value; draw()"></div>
+        </div>
+        <div class="row2">
+          <div><label>Gás/Energia (R$ / lote)</label><input type="text" inputmode="decimal" data-key="energia" placeholder="0,00" value="${s.energia}" oninput="formState.energia=this.value; draw()"></div>
+          <div><label>Outros custos (R$ / lote)</label><input type="text" inputmode="decimal" data-key="outros" placeholder="0,00" value="${s.outros}" oninput="formState.outros=this.value; draw()"></div>
+        </div>
+
+        <label>CMV alvo desejado (%)</label>
+        <input type="text" inputmode="decimal" data-key="cmvAlvo" placeholder="30" value="${s.cmvAlvo}" oninput="formState.cmvAlvo=this.value; draw()">
+      </div>
+
+      <div class="form-right">
+        <div class="resumo">
+          <h3>Resumo de custos</h3>
+          <div class="resumo-line"><span>Custo ingredientes</span><b>R$ ${fmtR(c.custoIngredientes)}</b></div>
+          <div class="resumo-line"><span>Custos adicionais</span><b>R$ ${fmtR(c.custosAdc)}</b></div>
+          <div class="resumo-line"><span>Custo total do lote</span><b>R$ ${fmtR(c.custoTotalLote)}</b></div>
+          <div class="resumo-line"><span>Rendimento</span><b>${c.rendimento} un.</b></div>
+          <div class="resumo-line"><span>Custo por unidade</span><b>R$ ${fmtR(c.custoUnidade)}</b></div>
+          <div class="resumo-line"><span>Lucro bruto / unidade</span><b>R$ ${fmtR(c.lucroUnidade)}</b></div>
+          <div class="resumo-line destaque"><span>Preço de venda sugerido</span><b>R$ ${fmtR(c.precoSugerido)}</b></div>
+        </div>
+
+        <div class="actions">
+          <button class="btn-salvar" onclick="salvar()">Salvar</button>
+          <button class="btn-zap" onclick="enviarWhatsApp()">Enviar no WhatsApp</button>
+        </div>
+        <button class="btn-pdf" onclick="gerarPDF()">Gerar PDF da ficha técnica</button>
+        ${editingId ? '<button class="btn-excluir" onclick="excluir()">Excluir este salgado</button>' : ''}
+      </div>
+    </div>
+  `;
+  document.getElementById('content').innerHTML = html;
+  restaurarFoco(foco);
+}
+
+function updateIng(idx, campo, valor){
+  formState.ingredientes[idx][campo] = valor;
+  draw();
+}
+function addIng(){
+  formState.ingredientes.push({nome:'',qtd:'',unidade:'g',custo:''});
+  draw();
+}
+function removeIng(idx){
+  if (formState.ingredientes.length <= 1) return;
+  formState.ingredientes.splice(idx,1);
+  draw();
+}
+
+async function salvar(){
+  if (!formState.nome || !formState.nome.trim()){
+    showToast('Dê um nome ao salgado antes de salvar');
+    return;
+  }
+  const idx = salgados.findIndex(x=>x.id===formState.id);
+  if (idx >= 0){ salgados[idx] = formState; }
+  else { salgados.push(formState); editingId = formState.id; }
+  await saveSalgados();
+  showToast('Salgado salvo!');
+  draw();
+}
+
+async function excluir(){
+  if (!confirm('Excluir este salgado cadastrado?')) return;
+  salgados = salgados.filter(x=>x.id!==editingId);
+  await saveSalgados();
+  voltarLista();
+}
+
+function voltarLista(){
+  editingId = null;
+  formState = null;
+  renderLista();
+}
+
+function montarRelatorio(s){
+  const c = calcular(s);
+  const data = new Date().toLocaleString('pt-BR');
+  let txt = `*FICHA TÉCNICA - ${s.nome || 'Sem nome'}*\n`;
+  txt += `Categoria: ${s.categoria}\n`;
+  txt += `Data: ${data}\n\n`;
+  txt += `*INGREDIENTES*\n`;
+  s.ingredientes.forEach(ing=>{
+    const sub = parseNum(ing.qtd) * parseNum(ing.custo);
+    txt += `- ${ing.nome || '(sem nome)'}: ${ing.qtd || 0}${ing.unidade} x R$ ${fmtR(parseNum(ing.custo))} = R$ ${fmtR(sub)}\n`;
+  });
+  txt += `Custo total ingredientes: R$ ${fmtR(c.custoIngredientes)}\n\n`;
+  txt += `*CUSTOS ADICIONAIS (lote)*\n`;
+  txt += `Embalagem: R$ ${fmtR(parseNum(s.embalagem))}\n`;
+  txt += `Mão de obra: R$ ${fmtR(parseNum(s.maoObra))}\n`;
+  txt += `Gás/Energia: R$ ${fmtR(parseNum(s.energia))}\n`;
+  txt += `Outros: R$ ${fmtR(parseNum(s.outros))}\n\n`;
+  txt += `*RESUMO*\n`;
+  txt += `Rendimento: ${c.rendimento} unidades\n`;
+  txt += `Custo total do lote: R$ ${fmtR(c.custoTotalLote)}\n`;
+  txt += `Custo por unidade: R$ ${fmtR(c.custoUnidade)}\n`;
+  txt += `CMV alvo: ${c.cmvAlvo}%\n`;
+  txt += `Preço de venda sugerido: R$ ${fmtR(c.precoSugerido)}\n`;
+  txt += `Lucro bruto/unidade: R$ ${fmtR(c.lucroUnidade)}\n\n`;
+  txt += `_Enviado via Ficha Técnica Digital - Grupo Ricco_`;
+  return txt;
+}
+
+function enviarWhatsApp(){
+  if (!formState.nome || !formState.nome.trim()){
+    showToast('Dê um nome ao salgado antes de enviar');
+    return;
+  }
+  const texto = montarRelatorio(formState);
+  const url = 'https://wa.me/' + WHATSAPP_NUMERO + '?text=' + encodeURIComponent(texto);
+  window.open(url, '_blank');
+}
+
+function gerarPDF(){
+  if (!formState.nome || !formState.nome.trim()){
+    showToast('Dê um nome ao salgado antes de gerar o PDF');
+    return;
+  }
+  const s = formState;
+  const c = calcular(s);
+  const data = new Date().toLocaleString('pt-BR');
+
+  let linhasIng = '';
+  s.ingredientes.forEach(ing=>{
+    const sub = parseNum(ing.qtd) * parseNum(ing.custo);
+    linhasIng += '<tr>' +
+      '<td>' + escapeHtml(ing.nome || '(sem nome)') + '</td>' +
+      '<td class="num">' + (ing.qtd || 0) + ' ' + ing.unidade + '</td>' +
+      '<td class="num">R$ ' + fmtR(parseNum(ing.custo)) + '</td>' +
+      '<td class="num">R$ ' + fmtR(sub) + '</td>' +
+      '</tr>';
+  });
+
+  const html = `
+    <div class="pdf-doc">
+      <div class="pdf-head">
+        <div>
+          <div class="marca">Grupo <span>Ricco</span></div>
+          <h1>Ficha Técnica de Custos</h1>
+        </div>
+        <div class="data">Emitido em<br>${data}</div>
+      </div>
+      <div class="pdf-sub"><b>${escapeHtml(s.nome)}</b> &nbsp;·&nbsp; Categoria: ${s.categoria} &nbsp;·&nbsp; Rendimento: ${c.rendimento} unidades</div>
+
+      <h2>Ingredientes</h2>
+      <table class="pdf-tbl">
+        <thead><tr><th>Ingrediente</th><th class="num">Qtd. usada</th><th class="num">Custo/un</th><th class="num">Subtotal</th></tr></thead>
+        <tbody>${linhasIng}</tbody>
+      </table>
+
+      <h2>Custos adicionais do lote</h2>
+      <table class="pdf-custos">
+        <tr><td>Embalagem</td><td class="v">R$ ${fmtR(parseNum(s.embalagem))}</td></tr>
+        <tr><td>Mão de obra</td><td class="v">R$ ${fmtR(parseNum(s.maoObra))}</td></tr>
+        <tr><td>Gás/Energia</td><td class="v">R$ ${fmtR(parseNum(s.energia))}</td></tr>
+        <tr><td>Outros</td><td class="v">R$ ${fmtR(parseNum(s.outros))}</td></tr>
+      </table>
+
+      <div class="pdf-resumo">
+        <div class="pdf-resumo-line"><span>Custo total de ingredientes</span><b>R$ ${fmtR(c.custoIngredientes)}</b></div>
+        <div class="pdf-resumo-line"><span>Custos adicionais</span><b>R$ ${fmtR(c.custosAdc)}</b></div>
+        <div class="pdf-resumo-line"><span>Custo total do lote</span><b>R$ ${fmtR(c.custoTotalLote)}</b></div>
+        <div class="pdf-resumo-line"><span>Custo por unidade</span><b>R$ ${fmtR(c.custoUnidade)}</b></div>
+        <div class="pdf-resumo-line"><span>CMV alvo</span><b>${fmtR(c.cmvAlvo)}%</b></div>
+        <div class="pdf-resumo-line"><span>Lucro bruto / unidade</span><b>R$ ${fmtR(c.lucroUnidade)}</b></div>
+        <div class="pdf-resumo-line destaque"><span>Preço de venda sugerido</span><b>R$ ${fmtR(c.precoSugerido)}</b></div>
+      </div>
+
+      <div class="pdf-foot">Ficha Técnica Digital &middot; Desenvolvido por Ricco Assessoria Contábil &amp; Financeira</div>
+    </div>
+  `;
+  document.getElementById('print-area').innerHTML = html;
+  setTimeout(()=>{ window.print(); }, 50);
+}
+
+(function init(){
+  iniciarSincronizacao();
+})();
+</script>
+</body>
+</html>
