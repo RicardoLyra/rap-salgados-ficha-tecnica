@@ -81,6 +81,12 @@
   .body-pad{padding:22px;}
 
   /* LIST VIEW */
+  .tabs{display:flex;gap:6px;margin-bottom:16px;}
+  .tab-btn{
+    flex:1;background:none;border:1.5px solid var(--linha);border-radius:8px;padding:9px 4px;
+    font-family:'Montserrat',sans-serif;font-weight:700;font-size:12px;color:var(--tinta-suave);cursor:pointer;
+  }
+  .tab-btn.active{background:var(--verde);border-color:var(--verde);color:var(--papel);}
   .list-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
   .list-header h2{font-family:'Montserrat',sans-serif;font-size:15px;margin:0;color:var(--verde);}
   .btn-novo{
@@ -309,15 +315,19 @@ function parseNum(v){
 // (veja o passo a passo que a Ricco Assessoria te enviou)
 // ============================================================
 const firebaseConfig = {
-  apiKey: "AIzaSyBFnYNIwad8JfJJ1jRCgR7eTGD1mbcbRR4",
-  authDomain: "rap-salgados-fichatecnica.firebaseapp.com",
-  projectId: "rap-salgados-fichatecnica",
-  storageBucket: "rap-salgados-fichatecnica.firebasestorage.app",
-  messagingSenderId: "469471128792",
-  appId: "1:469471128792:web:cd9599506296aee7153bad"
+  apiKey: "COLE_AQUI_SUA_API_KEY",
+  authDomain: "COLE_AQUI.firebaseapp.com",
+  projectId: "COLE_AQUI",
+  storageBucket: "COLE_AQUI.appspot.com",
+  messagingSenderId: "COLE_AQUI",
+  appId: "COLE_AQUI"
 };
 let salgados = [];
+let massas = [];
+let recheios = [];
+let abaAtual = 'salgados';
 let editingId = null;
+let editingTipo = null;
 let syncPronto = false;
 let docRef = null;
 
@@ -340,9 +350,11 @@ function iniciarSincronizacao(){
   docRef.onSnapshot((snap)=>{
     const data = snap.exists ? snap.data() : null;
     salgados = (data && data.itens) ? data.itens : [];
+    massas = (data && data.massas) ? data.massas : [];
+    recheios = (data && data.recheios) ? data.recheios : [];
     syncPronto = true;
     if (editingId === null){
-      renderLista();
+      renderTela();
     }
   }, (err)=>{
     console.error(err);
@@ -350,20 +362,32 @@ function iniciarSincronizacao(){
   });
 }
 
-async function saveSalgados(){
+async function salvarDados(){
   if (!docRef){
     showToast('Configuração do Firebase pendente.');
     return;
   }
   try{
-    await docRef.set({ itens: salgados }, { merge: true });
+    await docRef.set({ itens: salgados, massas: massas, recheios: recheios }, { merge: true });
   }catch(e){
     showToast('Erro ao salvar. Verifique sua internet.');
   }
 }
 
+function calcularComponente(comp){
+  const custoIngredientes = (comp.ingredientes||[]).reduce((acc,i)=> acc + parseNum(i.qtd) * parseNum(i.custo), 0);
+  const rendimento = parseNum(comp.rendimento) || 1;
+  const custoPorUnidade = custoIngredientes / rendimento;
+  return {custoIngredientes, rendimento, custoPorUnidade};
+}
+
 function calcular(s){
-  const custoIngredientes = s.ingredientes.reduce((acc,i)=> acc + parseNum(i.qtd) * parseNum(i.custo), 0);
+  const massaSel = s.massaId ? massas.find(m=>m.id===s.massaId) : null;
+  const recheioSel = s.recheioId ? recheios.find(r=>r.id===s.recheioId) : null;
+  const custoMassa = massaSel ? calcularComponente(massaSel).custoPorUnidade * parseNum(s.massaQtd) : 0;
+  const custoRecheio = recheioSel ? calcularComponente(recheioSel).custoPorUnidade * parseNum(s.recheioQtd) : 0;
+  const custoIngredientesLivres = (s.ingredientes||[]).reduce((acc,i)=> acc + parseNum(i.qtd) * parseNum(i.custo), 0);
+  const custoIngredientes = custoMassa + custoRecheio + custoIngredientesLivres;
   const custosAdc = parseNum(s.embalagem) + parseNum(s.maoObra) + parseNum(s.energia) + parseNum(s.outros);
   const custoTotalLote = custoIngredientes + custosAdc;
   const rendimento = parseNum(s.rendimento) || 1;
@@ -371,14 +395,37 @@ function calcular(s){
   const cmvAlvo = parseNum(s.cmvAlvo) || 30;
   const precoSugerido = cmvAlvo > 0 ? custoUnidade / (cmvAlvo/100) : 0;
   const lucroUnidade = precoSugerido - custoUnidade;
-  return {custoIngredientes, custosAdc, custoTotalLote, rendimento, custoUnidade, cmvAlvo, precoSugerido, lucroUnidade};
+  return {custoMassa, custoRecheio, custoIngredientesLivres, custoIngredientes, custosAdc, custoTotalLote, rendimento, custoUnidade, cmvAlvo, precoSugerido, lucroUnidade};
+}
+
+function renderTela(){
+  if (abaAtual === 'massas') renderListaComponentes('massas');
+  else if (abaAtual === 'recheios') renderListaComponentes('recheios');
+  else renderLista();
+}
+
+function trocarAba(aba){
+  abaAtual = aba;
+  editingId = null; editingTipo = null; formState = null; compState = null; compTipo = null;
+  renderTela();
+}
+
+function renderTabs(){
+  const tabs = [['salgados','Salgados'],['massas','Massas'],['recheios','Recheios']];
+  let html = '<div class="tabs">';
+  tabs.forEach(([key,label])=>{
+    html += '<button class="tab-btn ' + (abaAtual===key?'active':'') + '" onclick="trocarAba(\''+key+'\')">' + label + '</button>';
+  });
+  html += '</div>';
+  return html;
 }
 
 function renderLista(){
   document.getElementById('headTitle').textContent = 'Salgados cadastrados';
   document.getElementById('headSub').textContent = 'Toque em um item para editar, ou cadastre um novo';
   const el = document.getElementById('content');
-  let html = '<div class="list-header"><h2>' + salgados.length + ' item(ns)</h2><button class="btn-novo" onclick="novoSalgado()">+ Novo salgado</button></div>';
+  let html = renderTabs();
+  html += '<div class="list-header"><h2>' + salgados.length + ' item(ns)</h2><button class="btn-novo" onclick="novoSalgado()">+ Novo salgado</button></div>';
   if (salgados.length === 0){
     html += '<div class="empty">Nenhum salgado cadastrado ainda.<br>Toque em "+ Novo salgado" para começar.</div>';
   } else {
@@ -395,6 +442,30 @@ function renderLista(){
   el.innerHTML = html;
 }
 
+function renderListaComponentes(tipo){
+  const list = tipo==='massas' ? massas : recheios;
+  const label = tipo==='massas' ? 'Massa' : 'Recheio';
+  document.getElementById('headTitle').textContent = label + 's cadastradas';
+  document.getElementById('headSub').textContent = 'Cadastre uma vez e reutilize em vários salgados';
+  const el = document.getElementById('content');
+  let html = renderTabs();
+  html += '<div class="list-header"><h2>' + list.length + ' item(ns)</h2><button class="btn-novo" onclick="novoComponente(\'' + tipo + '\')">+ Nova ' + label.toLowerCase() + '</button></div>';
+  if (list.length === 0){
+    html += '<div class="empty">Nenhuma ' + label.toLowerCase() + ' cadastrada ainda.<br>Toque em "+ Nova ' + label.toLowerCase() + '" para começar.</div>';
+  } else {
+    html += '<div class="cards-grid">';
+    list.slice().reverse().forEach(c=>{
+      const calc = calcularComponente(c);
+      html += '<div class="card" onclick="abrirComponente(\'' + tipo + '\',\'' + c.id + '\')">' +
+        '<div><div class="card-name">' + escapeHtml(c.nome || 'Sem nome') + '</div>' +
+        '<div class="card-sub">Rende ' + (c.rendimento||0) + ' ' + (c.unidadeRendimento||'') + '</div></div>' +
+        '<div class="card-price">R$ ' + fmtR(calc.custoPorUnidade) + ' /' + (c.unidadeRendimento||'un') + '</div></div>';
+    });
+    html += '</div>';
+  }
+  el.innerHTML = html;
+}
+
 function escapeHtml(str){
   const d = document.createElement('div');
   d.textContent = str || '';
@@ -405,7 +476,8 @@ function novoSalgado(){
   editingId = null;
   const novo = {
     id: uid(), nome:'', categoria:'Frito',
-    ingredientes:[{nome:'',qtd:'',unidade:'g',custo:''}],
+    massaId:'', massaQtd:'', recheioId:'', recheioQtd:'',
+    ingredientes:[],
     rendimento:'', embalagem:'', maoObra:'', energia:'', outros:'', cmvAlvo:'30'
   };
   renderForm(novo, true);
@@ -449,6 +521,8 @@ function draw(){
   const foco = capturarFoco();
   const s = formState;
   const c = calcular(s);
+  const massaSel = s.massaId ? massas.find(m=>m.id===s.massaId) : null;
+  const recheioSel = s.recheioId ? recheios.find(r=>r.id===s.recheioId) : null;
   let ingHtml = '';
   s.ingredientes.forEach((ing, idx)=>{
     const subtotal = parseNum(ing.qtd) * parseNum(ing.custo);
@@ -481,8 +555,37 @@ function draw(){
           ${['Frito','Assado','Congelados','Doce','Bebida','Outro'].map(c=>'<option '+(s.categoria===c?'selected':'')+'>'+c+'</option>').join('')}
         </select>
 
-        <div class="sec-title">Ingredientes</div>
-        ${ingHtml}
+        <div class="sec-title">Massa e recheio cadastrados (opcional)</div>
+        <div class="row2">
+          <div>
+            <label>Massa</label>
+            <select data-key="massaId" oninput="formState.massaId=this.value; if(!this.value) formState.massaQtd=''; draw()">
+              <option value="">Nenhuma</option>
+              ${massas.map(m=>'<option value="'+m.id+'" '+(s.massaId===m.id?'selected':'')+'>'+escapeHtml(m.nome)+'</option>').join('')}
+            </select>
+          </div>
+          <div>
+            <label>Qtd. usada${massaSel ? ' ('+massaSel.unidadeRendimento+')' : ''}</label>
+            <input type="text" inputmode="decimal" data-key="massaQtd" placeholder="Ex: 30" value="${s.massaQtd||''}" oninput="formState.massaQtd=this.value; draw()" ${!s.massaId?'disabled':''}>
+          </div>
+        </div>
+        <div class="row2">
+          <div>
+            <label>Recheio</label>
+            <select data-key="recheioId" oninput="formState.recheioId=this.value; if(!this.value) formState.recheioQtd=''; draw()">
+              <option value="">Nenhum</option>
+              ${recheios.map(r=>'<option value="'+r.id+'" '+(s.recheioId===r.id?'selected':'')+'>'+escapeHtml(r.nome)+'</option>').join('')}
+            </select>
+          </div>
+          <div>
+            <label>Qtd. usada${recheioSel ? ' ('+recheioSel.unidadeRendimento+')' : ''}</label>
+            <input type="text" inputmode="decimal" data-key="recheioQtd" placeholder="Ex: 20" value="${s.recheioQtd||''}" oninput="formState.recheioQtd=this.value; draw()" ${!s.recheioId?'disabled':''}>
+          </div>
+        </div>
+        ${massas.length===0 && recheios.length===0 ? '<div class="card-sub" style="margin:-4px 0 6px;">Cadastre massas e recheios na aba correspondente para reutiliz\u00e1-los aqui.</div>' : ''}
+
+        <div class="sec-title">Outros ingredientes (opcional)</div>
+        ${ingHtml || '<div class="card-sub" style="margin-bottom:8px;">Nenhum ingrediente extra adicionado.</div>'}
         <button class="add-ing" onclick="addIng()">+ Adicionar ingrediente</button>
 
         <div class="sec-title">Rendimento e custos do lote</div>
@@ -505,7 +608,10 @@ function draw(){
       <div class="form-right">
         <div class="resumo">
           <h3>Resumo de custos</h3>
-          <div class="resumo-line"><span>Custo ingredientes</span><b>R$ ${fmtR(c.custoIngredientes)}</b></div>
+          <div class="resumo-line"><span>Custo massa</span><b>R$ ${fmtR(c.custoMassa)}</b></div>
+          <div class="resumo-line"><span>Custo recheio</span><b>R$ ${fmtR(c.custoRecheio)}</b></div>
+          <div class="resumo-line"><span>Outros ingredientes</span><b>R$ ${fmtR(c.custoIngredientesLivres)}</b></div>
+          <div class="resumo-line"><span>Custo total de ingredientes</span><b>R$ ${fmtR(c.custoIngredientes)}</b></div>
           <div class="resumo-line"><span>Custos adicionais</span><b>R$ ${fmtR(c.custosAdc)}</b></div>
           <div class="resumo-line"><span>Custo total do lote</span><b>R$ ${fmtR(c.custoTotalLote)}</b></div>
           <div class="resumo-line"><span>Rendimento</span><b>${c.rendimento} un.</b></div>
@@ -536,9 +642,139 @@ function addIng(){
   draw();
 }
 function removeIng(idx){
-  if (formState.ingredientes.length <= 1) return;
   formState.ingredientes.splice(idx,1);
   draw();
+}
+
+// ============================================================
+// MASSAS E RECHEIOS (componentes reutilizáveis)
+// ============================================================
+let compState = null;
+let compTipo = null;
+
+function novoComponente(tipo){
+  editingId = null; editingTipo = null;
+  const novo = { id: uid(), nome:'', ingredientes:[{nome:'',qtd:'',unidade:'g',custo:''}], rendimento:'', unidadeRendimento:'g' };
+  renderFormComponente(novo, tipo, true);
+}
+
+function abrirComponente(tipo, id){
+  const list = tipo==='massas' ? massas : recheios;
+  const c = list.find(x=>x.id===id);
+  if (!c) return;
+  editingId = id; editingTipo = tipo;
+  renderFormComponente(JSON.parse(JSON.stringify(c)), tipo, false);
+}
+
+function renderFormComponente(c, tipo, isNew){
+  compState = c;
+  compTipo = tipo;
+  const label = tipo==='massas' ? 'massa' : 'recheio';
+  document.getElementById('headTitle').textContent = (isNew ? 'Nova ' : 'Editar ') + label;
+  document.getElementById('headSub').textContent = 'Cadastre os ingredientes e o rendimento total da receita';
+  drawComp();
+}
+
+function updateIngComp(idx, campo, valor){
+  compState.ingredientes[idx][campo] = valor;
+  drawComp();
+}
+function addIngComp(){
+  compState.ingredientes.push({nome:'',qtd:'',unidade:'g',custo:''});
+  drawComp();
+}
+function removeIngComp(idx){
+  if (compState.ingredientes.length <= 1) return;
+  compState.ingredientes.splice(idx,1);
+  drawComp();
+}
+
+function drawComp(){
+  const foco = capturarFoco();
+  const c = compState;
+  const calc = calcularComponente(c);
+  const label = compTipo==='massas' ? 'massa' : 'recheio';
+  let ingHtml = '';
+  c.ingredientes.forEach((ing, idx)=>{
+    const subtotal = parseNum(ing.qtd) * parseNum(ing.custo);
+    ingHtml += '<div class="ing-row">' +
+      '<div class="ing-row-top">' +
+        '<input type="text" data-key="ing-nome-' + idx + '" placeholder="Nome do ingrediente" value="' + escapeHtml(ing.nome) + '" oninput="updateIngComp(' + idx + ",'nome',this.value)\">" +
+      '</div>' +
+      '<div class="ing-row-bottom">' +
+        '<div><span class="ing-label">Quantidade usada</span><input type="text" inputmode="decimal" data-key="ing-qtd-' + idx + '" placeholder="Ex: 1000" value="' + ing.qtd + '" oninput="updateIngComp(' + idx + ",'qtd',this.value)\"></div>" +
+        '<div><span class="ing-label">Unidade</span><select data-key="ing-unidade-' + idx + '" oninput="updateIngComp(' + idx + ",'unidade',this.value)\">" +
+          UNIDADES.map(u=>'<option value="'+u+'" '+(ing.unidade===u?'selected':'')+'>'+u+'</option>').join('') +
+        '</select></div>' +
+        '<div><span class="ing-label">Custo pago (R$/un)</span><input type="text" inputmode="decimal" data-key="ing-custo-' + idx + '" placeholder="Ex: 16,00" value="' + ing.custo + '" oninput="updateIngComp(' + idx + ",'custo',this.value)\"></div>" +
+        '<button class="rm-btn" onclick="removeIngComp(' + idx + ')" title="Remover">&times;</button>' +
+      '</div>' +
+      '<div class="ing-subtotal">Custo desta quantidade: <b>R$ ' + fmtR(subtotal) + '</b></div>' +
+      '</div>';
+  });
+
+  const html = `
+    <button class="voltar" onclick="voltarListaComp()">&larr; Voltar à lista</button>
+
+    <label>Nome d${compTipo==='massas'?'a':'o'} ${label}</label>
+    <input type="text" data-key="nome" placeholder="Ex: ${compTipo==='massas'?'Massa de coxinha':'Recheio de frango'}" value="${escapeHtml(c.nome)}" oninput="compState.nome=this.value">
+
+    <div class="sec-title">Ingredientes</div>
+    ${ingHtml}
+    <button class="add-ing" onclick="addIngComp()">+ Adicionar ingrediente</button>
+
+    <div class="sec-title">Rendimento total da receita</div>
+    <div class="row2">
+      <div><label>Rendimento (quanto a receita produz)</label><input type="text" inputmode="decimal" data-key="rendimento" placeholder="Ex: 1000" value="${c.rendimento}" oninput="compState.rendimento=this.value; drawComp()"></div>
+      <div><label>Unidade</label><select data-key="unidadeRendimento" oninput="compState.unidadeRendimento=this.value; drawComp()">
+        ${UNIDADES.map(u=>'<option value="'+u+'" '+(c.unidadeRendimento===u?'selected':'')+'>'+u+'</option>').join('')}
+      </select></div>
+    </div>
+
+    <div class="resumo">
+      <h3>Resumo de custo</h3>
+      <div class="resumo-line"><span>Custo total dos ingredientes</span><b>R$ ${fmtR(calc.custoIngredientes)}</b></div>
+      <div class="resumo-line"><span>Rendimento</span><b>${calc.rendimento} ${c.unidadeRendimento}</b></div>
+      <div class="resumo-line destaque"><span>Custo por ${c.unidadeRendimento}</span><b>R$ ${fmtR(calc.custoPorUnidade)}</b></div>
+    </div>
+
+    <div class="actions">
+      <button class="btn-salvar" onclick="salvarComponente()">Salvar ${label}</button>
+    </div>
+    ${editingId && editingTipo===compTipo ? '<button class="btn-excluir" onclick="excluirComponente()">Excluir est' + (compTipo==='massas'?'a':'e') + ' ' + label + '</button>' : ''}
+  `;
+  document.getElementById('content').innerHTML = html;
+  restaurarFoco(foco);
+}
+
+async function salvarComponente(){
+  if (!compState.nome || !compState.nome.trim()){
+    showToast('Dê um nome antes de salvar');
+    return;
+  }
+  const list = compTipo==='massas' ? massas : recheios;
+  const idx = list.findIndex(x=>x.id===compState.id);
+  if (idx >= 0){ list[idx] = compState; }
+  else { list.push(compState); editingId = compState.id; editingTipo = compTipo; }
+  await salvarDados();
+  showToast((compTipo==='massas' ? 'Massa salva!' : 'Recheio salvo!'));
+  drawComp();
+}
+
+async function excluirComponente(){
+  const label = compTipo==='massas' ? 'massa' : 'recheio';
+  if (!confirm('Excluir est' + (compTipo==='massas'?'a':'e') + ' ' + label + '? Salgados que já a(o) utilizam vão precisar ser conferidos manualmente.')) return;
+  if (compTipo==='massas'){ massas = massas.filter(x=>x.id!==editingId); }
+  else { recheios = recheios.filter(x=>x.id!==editingId); }
+  await salvarDados();
+  voltarListaComp();
+}
+
+function voltarListaComp(){
+  const tipo = compTipo;
+  editingId = null; editingTipo = null; compState = null; compTipo = null;
+  abaAtual = tipo || abaAtual;
+  renderTela();
 }
 
 async function salvar(){
@@ -549,7 +785,7 @@ async function salvar(){
   const idx = salgados.findIndex(x=>x.id===formState.id);
   if (idx >= 0){ salgados[idx] = formState; }
   else { salgados.push(formState); editingId = formState.id; }
-  await saveSalgados();
+  await salvarDados();
   showToast('Salgado salvo!');
   draw();
 }
@@ -557,27 +793,38 @@ async function salvar(){
 async function excluir(){
   if (!confirm('Excluir este salgado cadastrado?')) return;
   salgados = salgados.filter(x=>x.id!==editingId);
-  await saveSalgados();
+  await salvarDados();
   voltarLista();
 }
 
 function voltarLista(){
   editingId = null;
   formState = null;
-  renderLista();
+  renderTela();
 }
 
 function montarRelatorio(s){
   const c = calcular(s);
+  const massaSel = s.massaId ? massas.find(m=>m.id===s.massaId) : null;
+  const recheioSel = s.recheioId ? recheios.find(r=>r.id===s.recheioId) : null;
   const data = new Date().toLocaleString('pt-BR');
   let txt = `*FICHA TÉCNICA - ${s.nome || 'Sem nome'}*\n`;
   txt += `Categoria: ${s.categoria}\n`;
   txt += `Data: ${data}\n\n`;
-  txt += `*INGREDIENTES*\n`;
-  s.ingredientes.forEach(ing=>{
-    const sub = parseNum(ing.qtd) * parseNum(ing.custo);
-    txt += `- ${ing.nome || '(sem nome)'}: ${ing.qtd || 0}${ing.unidade} x R$ ${fmtR(parseNum(ing.custo))} = R$ ${fmtR(sub)}\n`;
-  });
+  if (massaSel){
+    txt += `*MASSA*\n${massaSel.nome}: ${s.massaQtd||0}${massaSel.unidadeRendimento} x R$ ${fmtR(calcularComponente(massaSel).custoPorUnidade)} = R$ ${fmtR(c.custoMassa)}\n\n`;
+  }
+  if (recheioSel){
+    txt += `*RECHEIO*\n${recheioSel.nome}: ${s.recheioQtd||0}${recheioSel.unidadeRendimento} x R$ ${fmtR(calcularComponente(recheioSel).custoPorUnidade)} = R$ ${fmtR(c.custoRecheio)}\n\n`;
+  }
+  if (s.ingredientes && s.ingredientes.length){
+    txt += `*OUTROS INGREDIENTES*\n`;
+    s.ingredientes.forEach(ing=>{
+      const sub = parseNum(ing.qtd) * parseNum(ing.custo);
+      txt += `- ${ing.nome || '(sem nome)'}: ${ing.qtd || 0}${ing.unidade} x R$ ${fmtR(parseNum(ing.custo))} = R$ ${fmtR(sub)}\n`;
+    });
+    txt += `\n`;
+  }
   txt += `Custo total ingredientes: R$ ${fmtR(c.custoIngredientes)}\n\n`;
   txt += `*CUSTOS ADICIONAIS (lote)*\n`;
   txt += `Embalagem: R$ ${fmtR(parseNum(s.embalagem))}\n`;
@@ -612,10 +859,28 @@ function gerarPDF(){
   }
   const s = formState;
   const c = calcular(s);
+  const massaSel = s.massaId ? massas.find(m=>m.id===s.massaId) : null;
+  const recheioSel = s.recheioId ? recheios.find(r=>r.id===s.recheioId) : null;
   const data = new Date().toLocaleString('pt-BR');
 
   let linhasIng = '';
-  s.ingredientes.forEach(ing=>{
+  if (massaSel){
+    linhasIng += '<tr>' +
+      '<td><b>' + escapeHtml(massaSel.nome) + '</b> (massa)</td>' +
+      '<td class="num">' + (s.massaQtd||0) + ' ' + massaSel.unidadeRendimento + '</td>' +
+      '<td class="num">R$ ' + fmtR(calcularComponente(massaSel).custoPorUnidade) + '</td>' +
+      '<td class="num">R$ ' + fmtR(c.custoMassa) + '</td>' +
+      '</tr>';
+  }
+  if (recheioSel){
+    linhasIng += '<tr>' +
+      '<td><b>' + escapeHtml(recheioSel.nome) + '</b> (recheio)</td>' +
+      '<td class="num">' + (s.recheioQtd||0) + ' ' + recheioSel.unidadeRendimento + '</td>' +
+      '<td class="num">R$ ' + fmtR(calcularComponente(recheioSel).custoPorUnidade) + '</td>' +
+      '<td class="num">R$ ' + fmtR(c.custoRecheio) + '</td>' +
+      '</tr>';
+  }
+  (s.ingredientes||[]).forEach(ing=>{
     const sub = parseNum(ing.qtd) * parseNum(ing.custo);
     linhasIng += '<tr>' +
       '<td>' + escapeHtml(ing.nome || '(sem nome)') + '</td>' +
