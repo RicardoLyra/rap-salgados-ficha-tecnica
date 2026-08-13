@@ -81,10 +81,10 @@
   .body-pad{padding:22px;}
 
   /* LIST VIEW */
-  .tabs{display:flex;gap:6px;margin-bottom:16px;}
+  .tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;}
   .tab-btn{
-    flex:1;background:none;border:1.5px solid var(--linha);border-radius:8px;padding:9px 4px;
-    font-family:'Montserrat',sans-serif;font-weight:700;font-size:12px;color:var(--tinta-suave);cursor:pointer;
+    flex:1 1 30%;background:none;border:1.5px solid var(--linha);border-radius:8px;padding:8px 3px;
+    font-family:'Montserrat',sans-serif;font-weight:700;font-size:11.5px;color:var(--tinta-suave);cursor:pointer;
   }
   .tab-btn.active{background:var(--verde);border-color:var(--verde);color:var(--papel);}
   .list-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
@@ -217,6 +217,38 @@
   .pdf-resumo-line.destaque{font-size:16px;border-top:1px solid rgba(201,162,39,.4);margin-top:6px;padding-top:8px;}
   .pdf-foot{margin-top:26px;font-size:10.5px;color:#6B5F4F;text-align:center;}
 
+  /* ===== ETIQUETA NUTRICIONAL 60x40mm ===== */
+  .etiqueta-nutri{
+    width:56mm;font-family:Arial,Helvetica,sans-serif;color:#000;font-size:6.3px;line-height:1.25;
+    padding:1mm;box-sizing:border-box;border:0.3mm solid #000;
+  }
+  .etq-nome{font-size:7.5px;font-weight:bold;text-transform:uppercase;margin-bottom:1mm;}
+  .etq-titulo{font-size:7px;font-weight:bold;text-transform:uppercase;border-bottom:0.4mm solid #000;padding-bottom:0.5mm;margin-bottom:0.8mm;}
+  .etq-porcao{font-size:6.3px;margin-bottom:0.8mm;}
+  .etq-linha b{font-weight:bold;}
+  .etq-rodape{font-size:5.2px;margin-top:0.8mm;font-style:italic;}
+  .etq-marca{font-size:5.2px;text-align:right;margin-top:0.8mm;color:#444;}
+  .aviso-nutri{
+    text-align:left;border:1.5px dashed var(--erro);color:var(--erro);border-radius:9px;
+    padding:11px 13px;font-size:12px;margin-bottom:14px;
+  }
+
+  /* ===== ETIQUETA TRADICIONAL 60x90mm (tabela ANVISA) ===== */
+  .etiqueta-trad{
+    width:56mm;font-family:Arial,Helvetica,sans-serif;color:#000;
+    padding:1.5mm;box-sizing:border-box;border:0.4mm solid #000;
+  }
+  .etiqueta-trad .etq-nome{font-size:8px;font-weight:bold;text-transform:uppercase;margin-bottom:1mm;}
+  .et-titulo{font-size:9px;font-weight:bold;border-bottom:1mm solid #000;padding-bottom:0.8mm;margin-bottom:1mm;text-transform:uppercase;}
+  .et-porcao{font-size:7px;margin-bottom:1mm;border-bottom:0.3mm solid #000;padding-bottom:1mm;}
+  .et-tabela{width:100%;border-collapse:collapse;font-size:6.8px;}
+  .et-tabela thead td{font-weight:bold;border-bottom:0.5mm solid #000;padding:0.6mm 0.4mm;text-align:right;}
+  .et-tabela tbody td{padding:0.55mm 0.4mm;border-bottom:0.2mm solid #999;}
+  .et-tabela tbody tr:first-child td{border-bottom:0.5mm solid #000;font-weight:bold;padding-top:1mm;}
+  .et-tabela .et-nome{text-align:left;}
+  .et-tabela .et-qtd, .et-tabela .et-vd{text-align:right;white-space:nowrap;}
+  .et-rodape{font-size:5px;margin-top:1.2mm;line-height:1.25;}
+
   .cards-grid{display:block;}
 
   .check-row{
@@ -341,6 +373,9 @@ let recheios = [];
 let abaAtual = 'salgados';
 let editingId = null;
 let editingTipo = null;
+let etiquetaSalgadoId = null;
+let etiquetaState = null;
+let formatoEtiqueta = 'tradicional';
 let syncPronto = false;
 let docRef = null;
 
@@ -387,6 +422,173 @@ async function salvarDados(){
   }
 }
 
+// ============================================================
+// BASE NUTRICIONAL — valores médios de referência por 100g/100ml
+// (aproximados, baseados na Tabela TACO/composição média de alimentos)
+// kcal | carboidratos | açúcares | proteína | gord.total | gord.sat | gord.trans | fibra | sódio(mg)
+// ============================================================
+const NUTRI_DB = {
+  'farinha de trigo':        {kcal:364,carb:76.0,acucares:0.3,proteina:10.0,gordTotal:1.0,gordSat:0.2,gordTrans:0,fibra:2.3,sodio:2},
+  'farinha de mandioca':     {kcal:361,carb:87.9,acucares:0.0,proteina:1.6, gordTotal:0.3,gordSat:0.1,gordTrans:0,fibra:6.4,sodio:6},
+  'fuba':                    {kcal:360,carb:76.0,acucares:0.6,proteina:7.0, gordTotal:1.6,gordSat:0.3,gordTrans:0,fibra:4.6,sodio:1},
+  'farinha de milho':        {kcal:360,carb:76.0,acucares:0.6,proteina:7.0, gordTotal:1.6,gordSat:0.3,gordTrans:0,fibra:4.6,sodio:1},
+  'farinha de rosca':        {kcal:395,carb:72.0,acucares:5.0,proteina:13.0,gordTotal:5.0,gordSat:1.0,gordTrans:0,fibra:4.5,sodio:730},
+  'batata palha':            {kcal:480,carb:50.0,acucares:0.5,proteina:6.0, gordTotal:28.0,gordSat:6.0,gordTrans:0,fibra:4.5,sodio:500},
+  'batata':                  {kcal:52, carb:12.0,acucares:0.8,proteina:1.9, gordTotal:0.1,gordSat:0.0,gordTrans:0,fibra:1.3,sodio:6},
+  'frango desfiado':         {kcal:190,carb:0.0, acucares:0.0,proteina:27.0,gordTotal:8.0,gordSat:2.3,gordTrans:0,fibra:0,  sodio:70},
+  'peito de frango':         {kcal:159,carb:0.0, acucares:0.0,proteina:32.0,gordTotal:3.0,gordSat:0.9,gordTrans:0,fibra:0,  sodio:63},
+  'frango':                  {kcal:170,carb:0.0, acucares:0.0,proteina:28.0,gordTotal:6.0,gordSat:1.8,gordTrans:0,fibra:0,  sodio:65},
+  'carne moida':             {kcal:212,carb:0.0, acucares:0.0,proteina:26.0,gordTotal:12.0,gordSat:5.0,gordTrans:0.5,fibra:0,sodio:65},
+  'carne seca':              {kcal:280,carb:0.0, acucares:0.0,proteina:35.0,gordTotal:15.0,gordSat:6.0,gordTrans:0,fibra:0, sodio:4300},
+  'presunto':                {kcal:120,carb:2.0, acucares:1.0,proteina:18.0,gordTotal:4.5,gordSat:1.5,gordTrans:0,fibra:0, sodio:1150},
+  'queijo mussarela':        {kcal:280,carb:3.0, acucares:1.0,proteina:22.0,gordTotal:20.0,gordSat:12.0,gordTrans:0.3,fibra:0,sodio:470},
+  'queijo':                  {kcal:280,carb:3.0, acucares:1.0,proteina:22.0,gordTotal:20.0,gordSat:12.0,gordTrans:0.3,fibra:0,sodio:470},
+  'requeijao':                {kcal:257,carb:3.6, acucares:3.0,proteina:10.0,gordTotal:23.0,gordSat:15.0,gordTrans:0.4,fibra:0,sodio:460},
+  'catupiry':                {kcal:257,carb:3.6, acucares:3.0,proteina:10.0,gordTotal:23.0,gordSat:15.0,gordTrans:0.4,fibra:0,sodio:460},
+  'leite':                   {kcal:61, carb:4.7, acucares:4.7,proteina:3.2, gordTotal:3.3,gordSat:2.0,gordTrans:0.1,fibra:0, sodio:44},
+  'ovo':                     {kcal:143,carb:0.8, acucares:0.4,proteina:13.0,gordTotal:10.0,gordSat:3.3,gordTrans:0,fibra:0, sodio:142},
+  'manteiga':                {kcal:717,carb:0.1, acucares:0.1,proteina:0.9, gordTotal:81.0,gordSat:51.0,gordTrans:2.5,fibra:0,sodio:11},
+  'margarina':                {kcal:717,carb:0.7, acucares:0.6,proteina:0.2, gordTotal:80.0,gordSat:20.0,gordTrans:3.0,fibra:0,sodio:800},
+  'oleo':                    {kcal:884,carb:0.0, acucares:0.0,proteina:0.0, gordTotal:100.0,gordSat:15.0,gordTrans:0,fibra:0,sodio:0},
+  'sal':                     {kcal:0,  carb:0.0, acucares:0.0,proteina:0.0, gordTotal:0.0,gordSat:0.0,gordTrans:0,fibra:0, sodio:38700},
+  'acucar':                  {kcal:387,carb:99.8,acucares:99.8,proteina:0.0,gordTotal:0.0,gordSat:0.0,gordTrans:0,fibra:0, sodio:1},
+  'fermento quimico':        {kcal:53, carb:26.0,acucares:0.0,proteina:0.0, gordTotal:0.0,gordSat:0.0,gordTrans:0,fibra:0, sodio:10600},
+  'fermento biologico':      {kcal:105,carb:11.0,acucares:0.0,proteina:8.0, gordTotal:2.0,gordSat:0.3,gordTrans:0,fibra:4.0,sodio:51},
+  'cebola':                  {kcal:39, carb:9.0, acucares:4.2,proteina:1.1, gordTotal:0.1,gordSat:0.0,gordTrans:0,fibra:1.4,sodio:3},
+  'alho':                    {kcal:113,carb:26.0,acucares:1.0,proteina:5.0, gordTotal:0.2,gordSat:0.0,gordTrans:0,fibra:2.1,sodio:8},
+  'tomate':                  {kcal:15, carb:3.1, acucares:2.6,proteina:1.1, gordTotal:0.2,gordSat:0.0,gordTrans:0,fibra:1.2,sodio:3},
+  'cenoura':                 {kcal:34, carb:7.7, acucares:4.7,proteina:1.3, gordTotal:0.2,gordSat:0.0,gordTrans:0,fibra:3.2,sodio:65},
+  'ervilha':                 {kcal:63, carb:10.0,acucares:3.6,proteina:4.5, gordTotal:0.3,gordSat:0.0,gordTrans:0,fibra:4.0,sodio:250},
+  'milho':                   {kcal:98, carb:21.0,acucares:4.0,proteina:3.0, gordTotal:1.2,gordSat:0.2,gordTrans:0,fibra:2.4,sodio:220},
+  'azeitona':                {kcal:145,carb:3.8, acucares:0.5,proteina:1.0, gordTotal:15.0,gordSat:2.0,gordTrans:0,fibra:3.3,sodio:1550},
+  'calabresa':                {kcal:350,carb:2.0, acucares:0.5,proteina:15.0,gordTotal:32.0,gordSat:11.0,gordTrans:0.5,fibra:0,sodio:1100},
+  'bacon':                   {kcal:541,carb:1.4, acucares:0.0,proteina:37.0,gordTotal:42.0,gordSat:14.0,gordTrans:0,fibra:0,sodio:1717},
+  'salsicha':                {kcal:257,carb:3.0, acucares:1.0,proteina:11.0,gordTotal:22.0,gordSat:8.0,gordTrans:0.3,fibra:0,sodio:850},
+  'camarao':                 {kcal:99, carb:0.2, acucares:0.0,proteina:21.0,gordTotal:1.7,gordSat:0.3,gordTrans:0,fibra:0, sodio:190},
+  'bacalhau':                {kcal:82, carb:0.0, acucares:0.0,proteina:18.0,gordTotal:0.7,gordSat:0.1,gordTrans:0,fibra:0, sodio:130},
+  'palmito':                 {kcal:26, carb:4.4, acucares:1.0,proteina:2.4, gordTotal:0.3,gordSat:0.0,gordTrans:0,fibra:3.2,sodio:380},
+  'chocolate':                {kcal:540,carb:59.0,acucares:56.0,proteina:7.6,gordTotal:30.0,gordSat:18.0,gordTrans:0.3,fibra:3.0,sodio:79},
+  'doce de leite':            {kcal:315,carb:55.0,acucares:55.0,proteina:6.6,gordTotal:7.5,gordSat:4.7,gordTrans:0,fibra:0,sodio:90},
+  'goiabada':                 {kcal:275,carb:71.0,acucares:68.0,proteina:0.3,gordTotal:0.1,gordSat:0.0,gordTrans:0,fibra:1.4,sodio:5},
+  'creme de leite':           {kcal:239,carb:3.5, acucares:3.4,proteina:2.4, gordTotal:25.0,gordSat:16.0,gordTrans:0.9,fibra:0,sodio:30},
+  'coco ralado':              {kcal:660,carb:24.0,acucares:7.0,proteina:6.9, gordTotal:65.0,gordSat:57.0,gordTrans:0,fibra:16.0,sodio:37},
+  'banha':                   {kcal:902,carb:0.0, acucares:0.0,proteina:0.0, gordTotal:100.0,gordSat:39.0,gordTrans:1.3,fibra:0,sodio:0},
+  'agua':                    {kcal:0,  carb:0.0, acucares:0.0,proteina:0.0, gordTotal:0.0,gordSat:0.0,gordTrans:0,fibra:0, sodio:0}
+};
+const NUTRI_CHAVES_ORDENADAS = Object.keys(NUTRI_DB).sort((a,b)=> b.length - a.length);
+const VD_REF = { kcal:2000, carb:300, proteina:75, gordTotal:55, gordSat:22, fibra:25, sodio:2000 };
+
+function normalizarTexto(str){
+  return (str||'').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+}
+
+function buscarChaveNutri(nome){
+  const n = normalizarTexto(nome);
+  if (!n) return null;
+  if (NUTRI_DB[n]) return n;
+  for (const chave of NUTRI_CHAVES_ORDENADAS){
+    if (n.indexOf(chave) !== -1) return chave;
+  }
+  return null;
+}
+
+function pesoBaseGramas(qtd, unidade){
+  const n = parseNum(qtd);
+  if (!n) return 0;
+  if (unidade === 'g' || unidade === 'ml') return n;
+  if (unidade === 'kg' || unidade === 'l') return n * 1000;
+  return null; // 'un' não é conversível automaticamente
+}
+
+function zerosNutri(){
+  return {kcal:0,carb:0,acucares:0,proteina:0,gordTotal:0,gordSat:0,gordTrans:0,fibra:0,sodio:0};
+}
+function somaNutri(lista){
+  const total = zerosNutri();
+  lista.forEach(n=>{ Object.keys(total).forEach(k=> total[k] += (n[k]||0)); });
+  return total;
+}
+function escalarNutri(n, fator){
+  const r = {};
+  Object.keys(n).forEach(k=> r[k] = (typeof n[k]==='number') ? n[k]*fator : 0);
+  return r;
+}
+
+function resolverNutricaoIngrediente(ing){
+  const gramas = pesoBaseGramas(ing.qtd, ing.unidade);
+  const chave = buscarChaveNutri(ing.nome);
+  if (!chave || gramas === null || gramas === 0){
+    return Object.assign({encontrado:false}, zerosNutri());
+  }
+  const base = NUTRI_DB[chave];
+  const fator = gramas/100;
+  return Object.assign({encontrado:true}, escalarNutri(base, fator));
+}
+
+function nutricaoComponentePor100g(comp){
+  const total = somaNutri((comp.ingredientes||[]).map(resolverNutricaoIngrediente));
+  const rendG = pesoBaseGramas(comp.rendimento, comp.unidadeRendimento);
+  if (!rendG) return zerosNutri();
+  return escalarNutri(total, 100/rendG);
+}
+
+function ingredientesNaoReconhecidos(s){
+  const nomes = [];
+  const massaSel = s.massaId ? massas.find(m=>m.id===s.massaId) : null;
+  const recheioSel = s.recheioId ? recheios.find(r=>r.id===s.recheioId) : null;
+  if (massaSel) (massaSel.ingredientes||[]).forEach(i=>{ if (i.nome && !resolverNutricaoIngrediente(i).encontrado) nomes.push(i.nome + ' (massa)'); });
+  if (recheioSel) (recheioSel.ingredientes||[]).forEach(i=>{ if (i.nome && !resolverNutricaoIngrediente(i).encontrado) nomes.push(i.nome + ' (recheio)'); });
+  (s.ingredientes||[]).forEach(i=>{ if (i.nome && !resolverNutricaoIngrediente(i).encontrado) nomes.push(i.nome); });
+  return nomes;
+}
+
+function calcularNutricaoSalgado(s){
+  let total = zerosNutri();
+  let pesoTotalG = 0;
+  const massaSel = s.massaId ? massas.find(m=>m.id===s.massaId) : null;
+  const recheioSel = s.recheioId ? recheios.find(r=>r.id===s.recheioId) : null;
+
+  if (massaSel){
+    const per100 = nutricaoComponentePor100g(massaSel);
+    const gUsados = pesoBaseGramas(s.massaQtd, massaSel.unidadeRendimento);
+    if (gUsados){
+      total = somaNutri([total, escalarNutri(per100, gUsados/100)]);
+      pesoTotalG += gUsados;
+    }
+  }
+  if (recheioSel){
+    const per100 = nutricaoComponentePor100g(recheioSel);
+    const gUsados = pesoBaseGramas(s.recheioQtd, recheioSel.unidadeRendimento);
+    if (gUsados){
+      total = somaNutri([total, escalarNutri(per100, gUsados/100)]);
+      pesoTotalG += gUsados;
+    }
+  }
+  (s.ingredientes||[]).forEach(ing=>{
+    const r = resolverNutricaoIngrediente(ing);
+    total = somaNutri([total, r]);
+    const g = pesoBaseGramas(ing.qtd, ing.unidade);
+    if (g) pesoTotalG += g;
+  });
+
+  const rendimento = parseNum(s.rendimento) || 1;
+  const porPorcao = escalarNutri(total, 1/rendimento);
+  const pesoPorcaoG = pesoTotalG / rendimento;
+  return { total, porPorcao, pesoPorcaoG, rendimento };
+}
+
+function calcVD(campo, valor){
+  const ref = VD_REF[campo];
+  if (!ref) return null;
+  return Math.round((valor/ref)*100);
+}
+
+function fmtR1(v){
+  v = parseNum(v);
+  if (isNaN(v)) v = 0;
+  return v.toLocaleString('pt-BR', {minimumFractionDigits:1, maximumFractionDigits:1});
+}
+
 function calcularComponente(comp){
   const custoIngredientes = (comp.ingredientes||[]).reduce((acc,i)=> acc + parseNum(i.qtd) * parseNum(i.custo), 0);
   const rendimento = parseNum(comp.rendimento) || 1;
@@ -415,17 +617,19 @@ function renderTela(){
   if (abaAtual === 'massas') renderListaComponentes('massas');
   else if (abaAtual === 'recheios') renderListaComponentes('recheios');
   else if (abaAtual === 'relatorio') renderRelatorio();
+  else if (abaAtual === 'etiqueta') renderEtiquetaTab();
   else renderLista();
 }
 
 function trocarAba(aba){
   abaAtual = aba;
   editingId = null; editingTipo = null; formState = null; compState = null; compTipo = null;
+  etiquetaSalgadoId = null; etiquetaState = null;
   renderTela();
 }
 
 function renderTabs(){
-  const tabs = [['salgados','Salgados'],['massas','Massas'],['recheios','Recheios'],['relatorio','Relatório']];
+  const tabs = [['salgados','Salgados'],['massas','Massas'],['recheios','Recheios'],['relatorio','Relatório'],['etiqueta','Etiqueta']];
   let html = '<div class="tabs">';
   tabs.forEach(([key,label])=>{
     html += '<button class="tab-btn ' + (abaAtual===key?'active':'') + '" onclick="trocarAba(\''+key+'\')">' + label + '</button>';
@@ -970,6 +1174,294 @@ function baixarComoWord(innerHtml, qtd){
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
   showToast(qtd + ' ficha(s) exportada(s) em Word!');
+}
+
+// ============================================================
+// ETIQUETA NUTRICIONAL — cálculo automático + geração 60x40mm
+// ============================================================
+const CAMPOS_NUTRI = [
+  ['kcal','Valor energético (kcal)'],
+  ['carb','Carboidratos (g)'],
+  ['acucares','Açúcares totais (g)'],
+  ['acucaresAdd','Açúcares adicionados (g)'],
+  ['proteina','Proteínas (g)'],
+  ['gordTotal','Gorduras totais (g)'],
+  ['gordSat','Gorduras saturadas (g)'],
+  ['gordTrans','Gorduras trans (g)'],
+  ['fibra','Fibra alimentar (g)'],
+  ['sodio','Sódio (mg)']
+];
+
+function renderEtiquetaTab(){
+  if (etiquetaSalgadoId){
+    const s = salgados.find(x=>x.id===etiquetaSalgadoId);
+    if (s){ if (!etiquetaState) prepararEstadoEtiqueta(s); renderEtiquetaDetalhe(s); return; }
+    etiquetaSalgadoId = null;
+  }
+  renderEtiquetaLista();
+}
+
+function renderEtiquetaLista(){
+  document.getElementById('headTitle').textContent = 'Etiqueta nutricional';
+  document.getElementById('headSub').textContent = 'Selecione um salgado para gerar a etiqueta (60×40mm)';
+  const el = document.getElementById('content');
+  let html = renderTabs();
+  html += '<div class="list-header"><h2>' + salgados.length + ' salgado(s)</h2></div>';
+  if (salgados.length === 0){
+    html += '<div class="empty">Nenhum salgado cadastrado ainda.<br>Cadastre salgados na aba "Salgados" primeiro.</div>';
+  } else {
+    html += '<button class="add-ing" onclick="exportarCSVBarTender()">⤓ Exportar CSV para BarTender (todos os salgados)</button>';
+    html += '<div class="cards-grid" style="margin-top:12px;">';
+    salgados.slice().reverse().forEach(s=>{
+      html += '<div class="card" onclick="abrirEtiqueta(\'' + s.id + '\')">' +
+        '<div><div class="card-name">' + escapeHtml(s.nome || 'Sem nome') + '</div>' +
+        '<div class="card-sub">' + (s.categoria||'Salgado') + (s.nutriOverride ? ' · valores salvos' : ' · calculado automaticamente') + '</div></div>' +
+        '<div class="card-price">Etiqueta</div></div>';
+    });
+    html += '</div>';
+  }
+  el.innerHTML = html;
+}
+
+function obterNutricaoExport(s){
+  if (s.nutriOverride) return s.nutriOverride;
+  const calc = calcularNutricaoSalgado(s);
+  return {
+    kcal: calc.porPorcao.kcal, carb: calc.porPorcao.carb, acucares: calc.porPorcao.acucares,
+    acucaresAdd: 0, proteina: calc.porPorcao.proteina, gordTotal: calc.porPorcao.gordTotal,
+    gordSat: calc.porPorcao.gordSat, gordTrans: calc.porPorcao.gordTrans, fibra: calc.porPorcao.fibra,
+    sodio: calc.porPorcao.sodio,
+    pesoPorcao: s.porcaoPeso || (Math.round(calc.pesoPorcaoG) || ''),
+    porcaoDescricao: s.porcaoDescricao || '1 unidade'
+  };
+}
+
+function exportarCSVBarTender(){
+  if (salgados.length === 0){ showToast('Nenhum salgado cadastrado'); return; }
+  const cab = ['Nome','Categoria','Porcao_Descricao','Peso_Porcao_g',
+    'Valor_Energetico_kcal','VD_Energia_pct','Carboidratos_g','VD_Carboidratos_pct',
+    'Acucares_Totais_g','Acucares_Adicionados_g','Proteinas_g','VD_Proteinas_pct',
+    'Gorduras_Totais_g','VD_GordurasTotais_pct','Gorduras_Saturadas_g','VD_GordurasSaturadas_pct',
+    'Gorduras_Trans_g','Fibra_Alimentar_g','VD_Fibra_pct','Sodio_mg','VD_Sodio_pct'];
+  const linhas = [cab.join(';')];
+  const campoTexto = (v)=> '"' + String(v==null?'':v).replace(/"/g,'""') + '"';
+  const vdOuVazio = (campo, valor)=>{ const v = calcVD(campo, parseNum(valor)); return v===null ? '' : v; };
+
+  salgados.forEach(s=>{
+    const n = obterNutricaoExport(s);
+    const linha = [
+      campoTexto(s.nome), campoTexto(s.categoria), campoTexto(n.porcaoDescricao), campoTexto(n.pesoPorcao),
+      fmtR1(n.kcal), vdOuVazio('kcal', n.kcal),
+      fmtR1(n.carb), vdOuVazio('carb', n.carb),
+      fmtR1(n.acucares), fmtR1(n.acucaresAdd),
+      fmtR1(n.proteina), vdOuVazio('proteina', n.proteina),
+      fmtR1(n.gordTotal), vdOuVazio('gordTotal', n.gordTotal),
+      fmtR1(n.gordSat), vdOuVazio('gordSat', n.gordSat),
+      fmtR1(n.gordTrans),
+      fmtR1(n.fibra), vdOuVazio('fibra', n.fibra),
+      Math.round(parseNum(n.sodio)), vdOuVazio('sodio', n.sodio)
+    ];
+    linhas.push(linha.join(';'));
+  });
+
+  const csv = linhas.join('\r\n');
+  const blob = new Blob(['\ufeff', csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'fichas-nutricionais-bartender.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('CSV exportado! Use como fonte de dados no BarTender.');
+}
+
+function prepararEstadoEtiqueta(s){
+  const calc = calcularNutricaoSalgado(s);
+  if (s.nutriOverride){
+    etiquetaState = JSON.parse(JSON.stringify(s.nutriOverride));
+  } else {
+    etiquetaState = {
+      kcal: calc.porPorcao.kcal, carb: calc.porPorcao.carb, acucares: calc.porPorcao.acucares,
+      acucaresAdd: 0, proteina: calc.porPorcao.proteina, gordTotal: calc.porPorcao.gordTotal,
+      gordSat: calc.porPorcao.gordSat, gordTrans: calc.porPorcao.gordTrans, fibra: calc.porPorcao.fibra,
+      sodio: calc.porPorcao.sodio,
+      pesoPorcao: s.porcaoPeso || (Math.round(calc.pesoPorcaoG) || ''),
+      porcaoDescricao: s.porcaoDescricao || '1 unidade'
+    };
+  }
+}
+
+function abrirEtiqueta(id){
+  const s = salgados.find(x=>x.id===id);
+  if (!s) return;
+  etiquetaSalgadoId = id;
+  prepararEstadoEtiqueta(s);
+  renderEtiquetaDetalhe(s);
+}
+
+function voltarEtiquetaLista(){
+  etiquetaSalgadoId = null;
+  etiquetaState = null;
+  renderEtiquetaLista();
+}
+
+function atualizarCampoEtiqueta(campo, valor){
+  etiquetaState[campo] = valor;
+}
+
+function recalcularEtiqueta(){
+  const s = salgados.find(x=>x.id===etiquetaSalgadoId);
+  if (!s) return;
+  s.nutriOverride = null;
+  prepararEstadoEtiqueta(s);
+  renderEtiquetaDetalhe(s);
+  showToast('Valores recalculados a partir dos ingredientes');
+}
+
+async function salvarValoresEtiqueta(){
+  const s = salgados.find(x=>x.id===etiquetaSalgadoId);
+  if (!s) return;
+  s.nutriOverride = JSON.parse(JSON.stringify(etiquetaState));
+  s.porcaoPeso = etiquetaState.pesoPorcao;
+  s.porcaoDescricao = etiquetaState.porcaoDescricao;
+  await salvarDados();
+  showToast('Valores nutricionais salvos!');
+}
+
+function renderEtiquetaDetalhe(s){
+  document.getElementById('headTitle').textContent = 'Etiqueta nutricional';
+  document.getElementById('headSub').textContent = s.nome || 'Sem nome';
+  const naoReconhecidos = ingredientesNaoReconhecidos(s);
+  const n = etiquetaState;
+
+  let camposHtml = '';
+  for (let i=0; i<CAMPOS_NUTRI.length; i+=2){
+    camposHtml += '<div class="row2">';
+    camposHtml += campoEtiquetaHtml(CAMPOS_NUTRI[i]);
+    if (CAMPOS_NUTRI[i+1]) camposHtml += campoEtiquetaHtml(CAMPOS_NUTRI[i+1]);
+    camposHtml += '</div>';
+  }
+
+  let html = '<button class="voltar" onclick="voltarEtiquetaLista()">&larr; Voltar à lista</button>';
+
+  if (!s.massaId && !s.recheioId && (!s.ingredientes || s.ingredientes.length===0)){
+    html += '<div class="aviso-nutri">Este salgado ainda não tem massa, recheio ou ingredientes vinculados — não há nada para calcular automaticamente. Edite o salgado na aba "Salgados" primeiro.</div>';
+  } else if (naoReconhecidos.length){
+    html += '<div class="aviso-nutri">Alguns ingredientes não foram reconhecidos na base nutricional e não entraram no cálculo automático: <b>' + escapeHtml(naoReconhecidos.join(', ')) + '</b>. Ajuste os valores manualmente abaixo, se necessário.</div>';
+  }
+
+  html += '<div class="row2">' +
+    '<div><label>Descrição da porção</label><input type="text" value="' + escapeHtml(n.porcaoDescricao) + '" oninput="etiquetaState.porcaoDescricao=this.value"></div>' +
+    '<div><label>Peso da porção (g)</label><input type="text" inputmode="decimal" value="' + (n.pesoPorcao||'') + '" oninput="etiquetaState.pesoPorcao=this.value"></div>' +
+    '</div>';
+
+  html += '<label>Formato da etiqueta</label>' +
+    '<select onchange="formatoEtiqueta=this.value; renderEtiquetaDetalhe(salgados.find(x=>x.id===etiquetaSalgadoId))">' +
+    '<option value="linear" ' + (formatoEtiqueta==='linear'?'selected':'') + '>Linear compacta — 60×40mm</option>' +
+    '<option value="tradicional" ' + (formatoEtiqueta==='tradicional'?'selected':'') + '>Tabela tradicional ANVISA — 60×90mm</option>' +
+    '</select>' +
+    '<div class="card-sub" style="margin:6px 0 4px;">Embalagem de 20×30cm (600 cm²) exige a tabela tradicional pela regra da ANVISA (formato linear só é permitido em embalagens com área de rotulagem menor que 100 cm²).</div>';
+
+  html += '<div class="sec-title">Valores nutricionais por porção</div>';
+  html += camposHtml;
+
+  html += '<button class="add-ing" onclick="recalcularEtiqueta()">↻ Recalcular automaticamente pelos ingredientes</button>';
+
+  html += '<div class="actions">' +
+    '<button class="btn-salvar" onclick="salvarValoresEtiqueta()">Salvar valores</button>' +
+    '<button class="btn-word" onclick="gerarEtiquetaPDF()">Gerar etiqueta</button>' +
+    '</div>';
+
+  document.getElementById('content').innerHTML = html;
+}
+
+function campoEtiquetaHtml(campo){
+  const key = campo[0], label = campo[1];
+  return '<div><label>' + label + '</label><input type="text" inputmode="decimal" value="' + fmtR1(etiquetaState[key]) + '" oninput="atualizarCampoEtiqueta(\'' + key + '\',this.value)"></div>';
+}
+
+function montarBlocoEtiqueta(s, n){
+  const vdHtml = (campo, valor) => {
+    const vd = calcVD(campo, parseNum(valor));
+    return vd === null ? '' : ' (' + vd + '% VD)*';
+  };
+  return `
+    <div class="etiqueta-nutri">
+      <div class="etq-nome">${escapeHtml(s.nome)}</div>
+      <div class="etq-titulo">Informação Nutricional</div>
+      <div class="etq-porcao">Porção: ${escapeHtml(n.porcaoDescricao)} (${n.pesoPorcao||'?'} g)</div>
+      <div class="etq-linha">
+        <b>Valor energético</b> ${fmtR1(n.kcal)} kcal${vdHtml('kcal',n.kcal)};
+        <b>Carboidratos</b> ${fmtR1(n.carb)} g${vdHtml('carb',n.carb)};
+        <b>Açúcares totais</b> ${fmtR1(n.acucares)} g;
+        <b>Açúcares adicionados</b> ${fmtR1(n.acucaresAdd)} g;
+        <b>Proteínas</b> ${fmtR1(n.proteina)} g${vdHtml('proteina',n.proteina)};
+        <b>Gorduras totais</b> ${fmtR1(n.gordTotal)} g${vdHtml('gordTotal',n.gordTotal)};
+        <b>Gorduras saturadas</b> ${fmtR1(n.gordSat)} g${vdHtml('gordSat',n.gordSat)};
+        <b>Gorduras trans</b> ${fmtR1(n.gordTrans)} g;
+        <b>Fibra alimentar</b> ${fmtR1(n.fibra)} g${vdHtml('fibra',n.fibra)};
+        <b>Sódio</b> ${Math.round(parseNum(n.sodio))} mg${vdHtml('sodio',n.sodio)}.
+      </div>
+      <div class="etq-rodape">*% Valores diários com base em uma dieta de 2000 kcal.</div>
+      <div class="etq-marca">RAP Salgados</div>
+    </div>
+  `;
+}
+
+function montarBlocoEtiquetaTradicional(s, n){
+  const linhas = [
+    ['Valor energético', fmtR1(n.kcal) + ' kcal', calcVD('kcal', n.kcal)],
+    ['Carboidratos', fmtR1(n.carb) + ' g', calcVD('carb', n.carb)],
+    ['Açúcares totais', fmtR1(n.acucares) + ' g', null],
+    ['Açúcares adicionados', fmtR1(n.acucaresAdd) + ' g', null],
+    ['Proteínas', fmtR1(n.proteina) + ' g', calcVD('proteina', n.proteina)],
+    ['Gorduras totais', fmtR1(n.gordTotal) + ' g', calcVD('gordTotal', n.gordTotal)],
+    ['Gorduras saturadas', fmtR1(n.gordSat) + ' g', calcVD('gordSat', n.gordSat)],
+    ['Gorduras trans', fmtR1(n.gordTrans) + ' g', null],
+    ['Fibra alimentar', fmtR1(n.fibra) + ' g', calcVD('fibra', n.fibra)],
+    ['Sódio', Math.round(parseNum(n.sodio)) + ' mg', calcVD('sodio', n.sodio)]
+  ];
+  let linhasHtml = '';
+  linhas.forEach(([nome, valor, vd])=>{
+    linhasHtml += '<tr><td class="et-nome">' + nome + '</td><td class="et-qtd">' + valor + '</td><td class="et-vd">' + (vd===null?'-':vd+'%') + '</td></tr>';
+  });
+  return `
+    <div class="etiqueta-trad">
+      <div class="etq-nome">${escapeHtml(s.nome)}</div>
+      <div class="et-titulo">Informação Nutricional</div>
+      <div class="et-porcao">Porção: ${escapeHtml(n.porcaoDescricao)} (${n.pesoPorcao||'?'} g)</div>
+      <table class="et-tabela">
+        <thead><tr><td></td><td class="et-qtd">Qtd. por<br>porção</td><td class="et-vd">%VD*</td></tr></thead>
+        <tbody>${linhasHtml}</tbody>
+      </table>
+      <div class="et-rodape">*% Valores diários com base em uma dieta de 2000 kcal. Seus valores diários podem ser maiores ou menores dependendo de suas necessidades energéticas.</div>
+      <div class="etq-marca">RAP Salgados</div>
+    </div>
+  `;
+}
+
+function gerarEtiquetaPDF(){
+  const s = salgados.find(x=>x.id===etiquetaSalgadoId);
+  if (!s) return;
+  let bloco, tamanho;
+  if (formatoEtiqueta === 'tradicional'){
+    bloco = montarBlocoEtiquetaTradicional(s, etiquetaState);
+    tamanho = '60mm 90mm';
+  } else {
+    bloco = montarBlocoEtiqueta(s, etiquetaState);
+    tamanho = '60mm 40mm';
+  }
+  document.getElementById('print-area').innerHTML = bloco;
+  const styleTag = document.createElement('style');
+  styleTag.id = 'page-size-etiqueta';
+  styleTag.textContent = '@page{ size: ' + tamanho + '; margin: 2mm; }';
+  document.head.appendChild(styleTag);
+  setTimeout(()=>{
+    window.print();
+    setTimeout(()=>{ const t = document.getElementById('page-size-etiqueta'); if (t) t.remove(); }, 800);
+  }, 50);
 }
 
 function montarBlocoFicha(s, quebraPagina){
