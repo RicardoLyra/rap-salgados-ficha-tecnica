@@ -124,6 +124,13 @@
   .ing-row{
     border:1px solid var(--linha);border-radius:9px;padding:10px 10px 11px;margin-bottom:9px;background:#fffdf8;
   }
+  .tam-preview{border:1px solid var(--linha);border-radius:9px;overflow:hidden;margin-top:10px;}
+  .tam-preview-row{
+    display:grid;grid-template-columns:1.3fr 1fr 1fr 1.2fr;gap:4px;padding:8px 10px;
+    font-size:12px;border-bottom:1px solid var(--linha);align-items:center;
+  }
+  .tam-preview-row:last-child{border-bottom:none;}
+  .tam-preview-head{background:var(--papel-2);font-family:'Montserrat',sans-serif;font-weight:700;font-size:10.5px;text-transform:uppercase;color:var(--verde);}
   .ing-row-top{display:flex;gap:6px;margin-bottom:7px;}
   .ing-row-top input{flex:1;}
   .ing-row-bottom{display:grid;grid-template-columns: 1fr 70px 1fr 30px;gap:6px;align-items:center;}
@@ -375,6 +382,7 @@ let editingId = null;
 let editingTipo = null;
 let etiquetaSalgadoId = null;
 let etiquetaState = null;
+let etiquetaTamanhoSelecionado = '__base__';
 let formatoEtiqueta = 'tradicional';
 let syncPronto = false;
 let docRef = null;
@@ -613,6 +621,22 @@ function calcular(s){
   return {custoMassa, custoRecheio, custoIngredientesLivres, custoIngredientes, custosAdc, custoTotalLote, rendimento, custoUnidade, cmvAlvo, precoSugerido, lucroUnidade};
 }
 
+function calcularPorPeso(s, c, pesoAlvo){
+  const pesoBase = parseNum(s.pesoBase) || 20;
+  const fator = pesoBase > 0 ? (parseNum(pesoAlvo) / pesoBase) : 1;
+  const custoUnidade = c.custoUnidade * fator;
+  const precoSugerido = c.cmvAlvo > 0 ? custoUnidade / (c.cmvAlvo/100) : 0;
+  const lucroUnidade = precoSugerido - custoUnidade;
+  return { peso: parseNum(pesoAlvo), fator, custoUnidade, precoSugerido, lucroUnidade };
+}
+
+function listaTamanhos(s){
+  const pesoBase = parseNum(s.pesoBase) || 20;
+  const lista = [{ id:'__base__', nome:'Padrão', peso: pesoBase, isBase:true }];
+  (s.tamanhos||[]).forEach(t => lista.push({ id:t.id, nome:t.nome, peso:parseNum(t.peso), isBase:false }));
+  return lista;
+}
+
 function renderTela(){
   if (abaAtual === 'massas') renderListaComponentes('massas');
   else if (abaAtual === 'recheios') renderListaComponentes('recheios');
@@ -624,7 +648,7 @@ function renderTela(){
 function trocarAba(aba){
   abaAtual = aba;
   editingId = null; editingTipo = null; formState = null; compState = null; compTipo = null;
-  etiquetaSalgadoId = null; etiquetaState = null;
+  etiquetaSalgadoId = null; etiquetaState = null; etiquetaTamanhoSelecionado = '__base__';
   renderTela();
 }
 
@@ -696,7 +720,8 @@ function novoSalgado(){
     id: uid(), nome:'', categoria:'Frito',
     massaId:'', massaQtd:'', recheioId:'', recheioQtd:'',
     ingredientes:[],
-    rendimento:'', embalagem:'', maoObra:'', energia:'', outros:'', cmvAlvo:'30'
+    rendimento:'', embalagem:'', maoObra:'', energia:'', outros:'', cmvAlvo:'30',
+    pesoBase:'20', tamanhos:[]
   };
   renderForm(novo, true);
 }
@@ -757,6 +782,31 @@ function draw(){
         '<button class="rm-btn" onclick="removeIng(' + idx + ')" title="Remover">&times;</button>' +
       '</div>' +
       '<div class="ing-subtotal">Custo desta quantidade: <b>R$ ' + fmtR(subtotal) + '</b></div>' +
+      '</div>';
+  });
+
+  if (!s.tamanhos) s.tamanhos = [];
+  let tamanhosHtml = '';
+  s.tamanhos.forEach((t, idx)=>{
+    tamanhosHtml += '<div class="ing-row">' +
+      '<div class="row2">' +
+        '<div><span class="ing-label">Nome do tamanho</span><input type="text" data-key="tam-nome-' + idx + '" placeholder="Ex: Mini, Grande" value="' + escapeHtml(t.nome) + '" oninput="updateTamanho(' + idx + ",'nome',this.value)\"></div>" +
+        '<div style="display:flex;gap:6px;align-items:flex-end;">' +
+          '<div style="flex:1;"><span class="ing-label">Peso da unidade (g)</span><input type="text" inputmode="decimal" data-key="tam-peso-' + idx + '" placeholder="Ex: 40" value="' + (t.peso||'') + '" oninput="updateTamanho(' + idx + ",'peso',this.value)\"></div>" +
+          '<button class="rm-btn" onclick="removeTamanho(' + idx + ')" title="Remover">&times;</button>' +
+        '</div>' +
+      '</div>' +
+      '</div>';
+  });
+
+  let tamanhosPreview = '';
+  listaTamanhos(s).forEach(t=>{
+    const pt = calcularPorPeso(s, c, t.peso);
+    tamanhosPreview += '<div class="tam-preview-row">' +
+      '<span>' + escapeHtml(t.nome) + '</span>' +
+      '<span>' + fmtR1(pt.peso) + ' g</span>' +
+      '<span>R$ ' + fmtR(pt.custoUnidade) + '</span>' +
+      '<span><b>R$ ' + fmtR(pt.precoSugerido) + '</b></span>' +
       '</div>';
   });
 
@@ -821,11 +871,20 @@ function draw(){
 
         <label>CMV alvo desejado (%)</label>
         <input type="text" inputmode="decimal" data-key="cmvAlvo" placeholder="30" value="${s.cmvAlvo}" oninput="formState.cmvAlvo=this.value; draw()">
+
+        <div class="sec-title">Tamanhos e pesos<button class="add-ing" style="width:auto;margin:0;padding:5px 10px;font-size:11.5px;" onclick="addTamanho()">+ Adicionar tamanho</button></div>
+        <label>Peso médio da unidade padrão (g)</label>
+        <input type="text" inputmode="decimal" data-key="pesoBase" placeholder="Ex: 20" value="${s.pesoBase||''}" oninput="formState.pesoBase=this.value; draw()">
+        ${tamanhosHtml}
+        <div class="tam-preview">
+          <div class="tam-preview-row tam-preview-head"><span>Tamanho</span><span>Peso</span><span>Custo/un</span><span>Preço sugerido</span></div>
+          ${tamanhosPreview}
+        </div>
       </div>
 
       <div class="form-right">
         <div class="resumo">
-          <h3>Resumo de custos</h3>
+          <h3>Resumo de custos (tamanho padrão)</h3>
           <div class="resumo-line"><span>Custo massa</span><b>R$ ${fmtR(c.custoMassa)}</b></div>
           <div class="resumo-line"><span>Custo recheio</span><b>R$ ${fmtR(c.custoRecheio)}</b></div>
           <div class="resumo-line"><span>Outros ingredientes</span><b>R$ ${fmtR(c.custoIngredientesLivres)}</b></div>
@@ -861,6 +920,20 @@ function addIng(){
 }
 function removeIng(idx){
   formState.ingredientes.splice(idx,1);
+  draw();
+}
+
+function updateTamanho(idx, campo, valor){
+  formState.tamanhos[idx][campo] = valor;
+  draw();
+}
+function addTamanho(){
+  if (!formState.tamanhos) formState.tamanhos = [];
+  formState.tamanhos.push({ id: uid(), nome:'', peso:'' });
+  draw();
+}
+function removeTamanho(idx){
+  formState.tamanhos.splice(idx,1);
   draw();
 }
 
@@ -1236,10 +1309,24 @@ function obterNutricaoExport(s){
   };
 }
 
+function calcularNutricaoParaPeso(s, peso){
+  const n = obterNutricaoExport(s);
+  const base = parseNum(s.pesoBase) || 20;
+  const fator = base > 0 ? (parseNum(peso) / base) : 1;
+  return {
+    kcal: parseNum(n.kcal)*fator, carb: parseNum(n.carb)*fator, acucares: parseNum(n.acucares)*fator,
+    acucaresAdd: parseNum(n.acucaresAdd)*fator, proteina: parseNum(n.proteina)*fator,
+    gordTotal: parseNum(n.gordTotal)*fator, gordSat: parseNum(n.gordSat)*fator,
+    gordTrans: parseNum(n.gordTrans)*fator, fibra: parseNum(n.fibra)*fator, sodio: parseNum(n.sodio)*fator,
+    pesoPorcao: Math.round(parseNum(peso)) || '',
+    porcaoDescricao: '1 unidade'
+  };
+}
+
 function exportarCSVBarTender(){
   if (salgados.length === 0){ showToast('Nenhum salgado cadastrado'); return; }
-  const cab = ['Nome','Categoria','Porcao_Descricao','Peso_Porcao_g',
-    'Valor_Energetico_kcal','VD_Energia_pct','Carboidratos_g','VD_Carboidratos_pct',
+  const cab = ['Nome','Tamanho','Categoria','Porcao_Descricao','Peso_Porcao_g',
+    'Preco_Sugerido','Valor_Energetico_kcal','VD_Energia_pct','Carboidratos_g','VD_Carboidratos_pct',
     'Acucares_Totais_g','Acucares_Adicionados_g','Proteinas_g','VD_Proteinas_pct',
     'Gorduras_Totais_g','VD_GordurasTotais_pct','Gorduras_Saturadas_g','VD_GordurasSaturadas_pct',
     'Gorduras_Trans_g','Fibra_Alimentar_g','VD_Fibra_pct','Sodio_mg','VD_Sodio_pct'];
@@ -1248,20 +1335,25 @@ function exportarCSVBarTender(){
   const vdOuVazio = (campo, valor)=>{ const v = calcVD(campo, parseNum(valor)); return v===null ? '' : v; };
 
   salgados.forEach(s=>{
-    const n = obterNutricaoExport(s);
-    const linha = [
-      campoTexto(s.nome), campoTexto(s.categoria), campoTexto(n.porcaoDescricao), campoTexto(n.pesoPorcao),
-      fmtR1(n.kcal), vdOuVazio('kcal', n.kcal),
-      fmtR1(n.carb), vdOuVazio('carb', n.carb),
-      fmtR1(n.acucares), fmtR1(n.acucaresAdd),
-      fmtR1(n.proteina), vdOuVazio('proteina', n.proteina),
-      fmtR1(n.gordTotal), vdOuVazio('gordTotal', n.gordTotal),
-      fmtR1(n.gordSat), vdOuVazio('gordSat', n.gordSat),
-      fmtR1(n.gordTrans),
-      fmtR1(n.fibra), vdOuVazio('fibra', n.fibra),
-      Math.round(parseNum(n.sodio)), vdOuVazio('sodio', n.sodio)
-    ];
-    linhas.push(linha.join(';'));
+    const c = calcular(s);
+    listaTamanhos(s).forEach(t=>{
+      const n = t.isBase ? obterNutricaoExport(s) : calcularNutricaoParaPeso(s, t.peso);
+      const pt = calcularPorPeso(s, c, t.peso);
+      const linha = [
+        campoTexto(s.nome), campoTexto(t.nome), campoTexto(s.categoria), campoTexto(n.porcaoDescricao||('1 unidade ('+t.nome+')')), campoTexto(n.pesoPorcao || t.peso),
+        fmtR(pt.precoSugerido),
+        fmtR1(n.kcal), vdOuVazio('kcal', n.kcal),
+        fmtR1(n.carb), vdOuVazio('carb', n.carb),
+        fmtR1(n.acucares), fmtR1(n.acucaresAdd),
+        fmtR1(n.proteina), vdOuVazio('proteina', n.proteina),
+        fmtR1(n.gordTotal), vdOuVazio('gordTotal', n.gordTotal),
+        fmtR1(n.gordSat), vdOuVazio('gordSat', n.gordSat),
+        fmtR1(n.gordTrans),
+        fmtR1(n.fibra), vdOuVazio('fibra', n.fibra),
+        Math.round(parseNum(n.sodio)), vdOuVazio('sodio', n.sodio)
+      ];
+      linhas.push(linha.join(';'));
+    });
   });
 
   const csv = linhas.join('\r\n');
@@ -1297,6 +1389,7 @@ function abrirEtiqueta(id){
   const s = salgados.find(x=>x.id===id);
   if (!s) return;
   etiquetaSalgadoId = id;
+  etiquetaTamanhoSelecionado = '__base__';
   prepararEstadoEtiqueta(s);
   renderEtiquetaDetalhe(s);
 }
@@ -1304,7 +1397,13 @@ function abrirEtiqueta(id){
 function voltarEtiquetaLista(){
   etiquetaSalgadoId = null;
   etiquetaState = null;
+  etiquetaTamanhoSelecionado = '__base__';
   renderEtiquetaLista();
+}
+
+function trocarTamanhoEtiqueta(id){
+  etiquetaTamanhoSelecionado = id;
+  renderEtiquetaDetalhe(salgados.find(x=>x.id===etiquetaSalgadoId));
 }
 
 function atualizarCampoEtiqueta(campo, valor){
@@ -1334,13 +1433,17 @@ function renderEtiquetaDetalhe(s){
   document.getElementById('headTitle').textContent = 'Etiqueta nutricional';
   document.getElementById('headSub').textContent = s.nome || 'Sem nome';
   const naoReconhecidos = ingredientesNaoReconhecidos(s);
-  const n = etiquetaState;
+
+  const tamanhos = listaTamanhos(s);
+  const tamSel = tamanhos.find(t=>t.id===etiquetaTamanhoSelecionado) || tamanhos[0];
+  const editavel = !!tamSel.isBase;
+  const n = editavel ? etiquetaState : calcularNutricaoParaPeso(s, tamSel.peso);
 
   let camposHtml = '';
   for (let i=0; i<CAMPOS_NUTRI.length; i+=2){
     camposHtml += '<div class="row2">';
-    camposHtml += campoEtiquetaHtml(CAMPOS_NUTRI[i]);
-    if (CAMPOS_NUTRI[i+1]) camposHtml += campoEtiquetaHtml(CAMPOS_NUTRI[i+1]);
+    camposHtml += campoEtiquetaHtml(CAMPOS_NUTRI[i], n, editavel);
+    if (CAMPOS_NUTRI[i+1]) camposHtml += campoEtiquetaHtml(CAMPOS_NUTRI[i+1], n, editavel);
     camposHtml += '</div>';
   }
 
@@ -1352,9 +1455,22 @@ function renderEtiquetaDetalhe(s){
     html += '<div class="aviso-nutri">Alguns ingredientes não foram reconhecidos na base nutricional e não entraram no cálculo automático: <b>' + escapeHtml(naoReconhecidos.join(', ')) + '</b>. Ajuste os valores manualmente abaixo, se necessário.</div>';
   }
 
+  html += '<label>Tamanho</label>' +
+    '<select onchange="trocarTamanhoEtiqueta(this.value)">' +
+    tamanhos.map(t=>'<option value="' + t.id + '" ' + (t.id===tamSel.id?'selected':'') + '>' + escapeHtml(t.nome) + ' (' + fmtR1(t.peso) + 'g)</option>').join('') +
+    '</select>';
+
+  if (!editavel){
+    html += '<div class="card-sub" style="margin:6px 0 4px;">Valores calculados automaticamente a partir do tamanho Padrão, na proporção do peso. Para editar manualmente, selecione "Padrão".</div>';
+  }
+
   html += '<div class="row2">' +
-    '<div><label>Descrição da porção</label><input type="text" value="' + escapeHtml(n.porcaoDescricao) + '" oninput="etiquetaState.porcaoDescricao=this.value"></div>' +
-    '<div><label>Peso da porção (g)</label><input type="text" inputmode="decimal" value="' + (n.pesoPorcao||'') + '" oninput="etiquetaState.pesoPorcao=this.value"></div>' +
+    (editavel
+      ? '<div><label>Descrição da porção</label><input type="text" value="' + escapeHtml(n.porcaoDescricao) + '" oninput="etiquetaState.porcaoDescricao=this.value"></div>' +
+        '<div><label>Peso da porção (g)</label><input type="text" inputmode="decimal" value="' + (n.pesoPorcao||'') + '" oninput="etiquetaState.pesoPorcao=this.value"></div>'
+      : '<div><label>Descrição da porção</label><input type="text" value="1 unidade (' + escapeHtml(tamSel.nome) + ')" disabled style="opacity:.65;"></div>' +
+        '<div><label>Peso da porção (g)</label><input type="text" value="' + (n.pesoPorcao||'') + '" disabled style="opacity:.65;"></div>'
+    ) +
     '</div>';
 
   html += '<label>Formato da etiqueta</label>' +
@@ -1367,19 +1483,27 @@ function renderEtiquetaDetalhe(s){
   html += '<div class="sec-title">Valores nutricionais por porção</div>';
   html += camposHtml;
 
-  html += '<button class="add-ing" onclick="recalcularEtiqueta()">↻ Recalcular automaticamente pelos ingredientes</button>';
+  if (editavel){
+    html += '<button class="add-ing" onclick="recalcularEtiqueta()">↻ Recalcular automaticamente pelos ingredientes</button>';
+  }
 
-  html += '<div class="actions">' +
-    '<button class="btn-salvar" onclick="salvarValoresEtiqueta()">Salvar valores</button>' +
-    '<button class="btn-word" onclick="gerarEtiquetaPDF()">Gerar etiqueta</button>' +
-    '</div>';
+  html += '<div class="actions">';
+  if (editavel){
+    html += '<button class="btn-salvar" onclick="salvarValoresEtiqueta()">Salvar valores</button>';
+  }
+  html += '<button class="btn-word" onclick="gerarEtiquetaPDF()">Gerar etiqueta</button>';
+  html += '</div>';
 
   document.getElementById('content').innerHTML = html;
 }
 
-function campoEtiquetaHtml(campo){
+function campoEtiquetaHtml(campo, valores, editavel){
   const key = campo[0], label = campo[1];
-  return '<div><label>' + label + '</label><input type="text" inputmode="decimal" value="' + fmtR1(etiquetaState[key]) + '" oninput="atualizarCampoEtiqueta(\'' + key + '\',this.value)"></div>';
+  const val = fmtR1(valores[key]);
+  if (editavel){
+    return '<div><label>' + label + '</label><input type="text" inputmode="decimal" value="' + val + '" oninput="atualizarCampoEtiqueta(\'' + key + '\',this.value)"></div>';
+  }
+  return '<div><label>' + label + '</label><input type="text" value="' + val + '" disabled style="opacity:.65;"></div>';
 }
 
 function montarBlocoEtiqueta(s, n){
@@ -1445,18 +1569,22 @@ function montarBlocoEtiquetaTradicional(s, n){
 function gerarEtiquetaPDF(){
   const s = salgados.find(x=>x.id===etiquetaSalgadoId);
   if (!s) return;
-  let bloco, tamanho;
+  const tamanhos = listaTamanhos(s);
+  const tamSel = tamanhos.find(t=>t.id===etiquetaTamanhoSelecionado) || tamanhos[0];
+  const n = tamSel.isBase ? etiquetaState : calcularNutricaoParaPeso(s, tamSel.peso);
+  if (!tamSel.isBase) n.porcaoDescricao = '1 unidade (' + tamSel.nome + ')';
+  let bloco, tamanhoPagina;
   if (formatoEtiqueta === 'tradicional'){
-    bloco = montarBlocoEtiquetaTradicional(s, etiquetaState);
-    tamanho = '60mm 90mm';
+    bloco = montarBlocoEtiquetaTradicional(s, n);
+    tamanhoPagina = '60mm 90mm';
   } else {
-    bloco = montarBlocoEtiqueta(s, etiquetaState);
-    tamanho = '60mm 40mm';
+    bloco = montarBlocoEtiqueta(s, n);
+    tamanhoPagina = '60mm 40mm';
   }
   document.getElementById('print-area').innerHTML = bloco;
   const styleTag = document.createElement('style');
   styleTag.id = 'page-size-etiqueta';
-  styleTag.textContent = '@page{ size: ' + tamanho + '; margin: 2mm; }';
+  styleTag.textContent = '@page{ size: ' + tamanhoPagina + '; margin: 2mm; }';
   document.head.appendChild(styleTag);
   setTimeout(()=>{
     window.print();
