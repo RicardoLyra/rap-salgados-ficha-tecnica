@@ -192,6 +192,7 @@
     }
     @page{margin:16mm;}
   }
+  .pdf-doc.quebra{page-break-before: always;}
   .pdf-doc{font-family: Arial, 'Helvetica Neue', Helvetica, sans-serif;color:#444444;}
   .pdf-head{
     display:flex;justify-content:space-between;align-items:flex-end;
@@ -217,6 +218,18 @@
   .pdf-foot{margin-top:26px;font-size:10.5px;color:#6B5F4F;text-align:center;}
 
   .cards-grid{display:block;}
+
+  .check-row{
+    display:flex;align-items:center;gap:10px;padding:11px 13px;border:1px solid var(--linha);
+    border-radius:9px;margin-bottom:8px;background:#fff;cursor:pointer;font-size:13.5px;
+  }
+  .check-row input[type=checkbox]{width:17px;height:17px;accent-color:var(--verde);flex-shrink:0;}
+  .check-row small{color:var(--tinta-suave);font-size:11.5px;}
+  .export-actions{display:flex;gap:10px;margin-top:18px;}
+  .btn-word{
+    flex:1;background:#2B579A;color:#fff;border:none;border-radius:9px;padding:13px;
+    font-weight:700;font-size:13.5px;cursor:pointer;font-family:'Montserrat',sans-serif;
+  }
 
   .credito{
     text-align:center;font-size:11px;color:rgba(251,246,236,0.55);
@@ -401,6 +414,7 @@ function calcular(s){
 function renderTela(){
   if (abaAtual === 'massas') renderListaComponentes('massas');
   else if (abaAtual === 'recheios') renderListaComponentes('recheios');
+  else if (abaAtual === 'relatorio') renderRelatorio();
   else renderLista();
 }
 
@@ -411,7 +425,7 @@ function trocarAba(aba){
 }
 
 function renderTabs(){
-  const tabs = [['salgados','Salgados'],['massas','Massas'],['recheios','Recheios']];
+  const tabs = [['salgados','Salgados'],['massas','Massas'],['recheios','Recheios'],['relatorio','Relatório']];
   let html = '<div class="tabs">';
   tabs.forEach(([key,label])=>{
     html += '<button class="tab-btn ' + (abaAtual===key?'active':'') + '" onclick="trocarAba(\''+key+'\')">' + label + '</button>';
@@ -852,12 +866,113 @@ function enviarWhatsApp(){
   window.open(url, '_blank');
 }
 
-function gerarPDF(){
-  if (!formState.nome || !formState.nome.trim()){
-    showToast('Dê um nome ao salgado antes de gerar o PDF');
+// ============================================================
+// RELATÓRIO — seleção de salgados e exportação em PDF / Word
+// ============================================================
+let selecaoRelatorio = {};
+
+function relatorioTodosSelecionados(){
+  return salgados.length > 0 && salgados.every(s => selecaoRelatorio[s.id] !== false);
+}
+
+function toggleSelecaoRelatorio(id, val){
+  selecaoRelatorio[id] = val;
+  renderRelatorio();
+}
+
+function alternarTodosRelatorio(){
+  const marcarTodos = !relatorioTodosSelecionados();
+  salgados.forEach(s => { selecaoRelatorio[s.id] = marcarTodos; });
+  renderRelatorio();
+}
+
+function renderRelatorio(){
+  document.getElementById('headTitle').textContent = 'Gerar relatório';
+  document.getElementById('headSub').textContent = 'Selecione os salgados e exporte em PDF ou Word';
+  const el = document.getElementById('content');
+  let html = renderTabs();
+  html += '<div class="list-header"><h2>' + salgados.length + ' salgado(s)</h2>' +
+    (salgados.length > 0 ? '<button class="btn-novo" onclick="alternarTodosRelatorio()">' + (relatorioTodosSelecionados() ? 'Desmarcar todos' : 'Selecionar todos') + '</button>' : '') +
+    '</div>';
+
+  if (salgados.length === 0){
+    html += '<div class="empty">Nenhum salgado cadastrado ainda.<br>Cadastre salgados na aba "Salgados" para gerar um relatório.</div>';
+  } else {
+    salgados.slice().reverse().forEach(s=>{
+      const checked = selecaoRelatorio[s.id] !== false;
+      html += '<label class="check-row">' +
+        '<input type="checkbox" ' + (checked?'checked':'') + ' onchange="toggleSelecaoRelatorio(\'' + s.id + '\', this.checked)">' +
+        '<span><b>' + escapeHtml(s.nome || 'Sem nome') + '</b> <small>· ' + (s.categoria||'Salgado') + '</small></span>' +
+        '</label>';
+    });
+    html += '<div class="export-actions">' +
+      '<button class="btn-salvar" onclick="gerarRelatorioSelecionados(\'pdf\')">Gerar PDF</button>' +
+      '<button class="btn-word" onclick="gerarRelatorioSelecionados(\'doc\')">Gerar Word</button>' +
+      '</div>';
+  }
+  el.innerHTML = html;
+}
+
+function gerarRelatorioSelecionados(formato){
+  const selecionados = salgados.filter(s => selecaoRelatorio[s.id] !== false);
+  if (selecionados.length === 0){
+    showToast('Selecione ao menos um salgado');
     return;
   }
-  const s = formState;
+  let blocos = '';
+  selecionados.forEach((s, idx)=>{
+    blocos += montarBlocoFicha(s, idx > 0);
+  });
+
+  if (formato === 'pdf'){
+    document.getElementById('print-area').innerHTML = blocos;
+    setTimeout(()=>{ window.print(); }, 50);
+  } else {
+    baixarComoWord(blocos, selecionados.length);
+  }
+}
+
+function baixarComoWord(innerHtml, qtd){
+  const estilos = `
+    body{font-family:Arial,Helvetica,sans-serif;color:#444444;}
+    .pdf-doc{margin-bottom:26px;}
+    .pdf-doc.quebra{page-break-before:always;mso-break-type:page-break;}
+    .pdf-head{border-bottom:3px solid #1B4332;padding-bottom:10px;margin-bottom:16px;}
+    .pdf-head h1{color:#1B4332;font-size:19px;margin:4px 0 0;}
+    .marca{font-weight:bold;color:#1B4332;text-transform:uppercase;font-size:13px;}
+    .marca span{color:#C9A84C;}
+    .data{font-size:11px;color:#6B5F4F;}
+    .pdf-sub{font-size:12px;color:#6B5F4F;margin-bottom:14px;}
+    h2{color:#1B4332;font-size:12.5px;text-transform:uppercase;border-bottom:1px solid #D8CBA8;padding-bottom:4px;margin:16px 0 8px;}
+    table{width:100%;border-collapse:collapse;margin-bottom:10px;}
+    th,td{padding:6px 8px;font-size:11.5px;text-align:left;border-bottom:1px solid #EEE6D3;}
+    th{background:#F5F2EA;color:#1B4332;text-transform:uppercase;font-size:10.5px;}
+    .num, td.v{text-align:right;}
+    .pdf-resumo{background:#1B4332;color:#ffffff;padding:12px 16px;margin-top:12px;}
+    .pdf-resumo-line{font-size:12px;padding:3px 0;}
+    .pdf-resumo-line.destaque{font-size:14.5px;font-weight:bold;}
+    .pdf-foot{font-size:10px;color:#888888;margin-top:14px;text-align:center;}
+  `;
+  const doc = '<!DOCTYPE html>' +
+    '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">' +
+    '<head><meta charset="utf-8"><title>Fichas Técnicas RAP Salgados</title>' +
+    '<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom></w:WordDocument></xml><![endif]-->' +
+    '<style>' + estilos + '</style></head>' +
+    '<body>' + innerHtml + '</body></html>';
+
+  const blob = new Blob(['\ufeff', doc], { type: 'application/msword' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'fichas-tecnicas-rap-salgados.doc';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast(qtd + ' ficha(s) exportada(s) em Word!');
+}
+
+function montarBlocoFicha(s, quebraPagina){
   const c = calcular(s);
   const massaSel = s.massaId ? massas.find(m=>m.id===s.massaId) : null;
   const recheioSel = s.recheioId ? recheios.find(r=>r.id===s.recheioId) : null;
@@ -890,8 +1005,8 @@ function gerarPDF(){
       '</tr>';
   });
 
-  const html = `
-    <div class="pdf-doc">
+  return `
+    <div class="pdf-doc${quebraPagina ? ' quebra' : ''}">
       <div class="pdf-head">
         <div>
           <div class="marca">RAP <span>Salgados</span></div>
@@ -928,7 +1043,14 @@ function gerarPDF(){
       <div class="pdf-foot">Ficha Técnica Digital &middot; Desenvolvido por Ricco Assessoria Contábil &amp; Financeira</div>
     </div>
   `;
-  document.getElementById('print-area').innerHTML = html;
+}
+
+function gerarPDF(){
+  if (!formState.nome || !formState.nome.trim()){
+    showToast('Dê um nome ao salgado antes de gerar o PDF');
+    return;
+  }
+  document.getElementById('print-area').innerHTML = montarBlocoFicha(formState, false);
   setTimeout(()=>{ window.print(); }, 50);
 }
 
